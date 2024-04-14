@@ -1,5 +1,10 @@
-# Prerequisites
-*.d
+# CMake
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+run/CMakeFiles/
+run/cmake_install.cmake
 
 # Compiled Object files
 *.slo
@@ -31,5 +36,22 @@
 *.out
 *.app
 
-.vscode
+# LaTex
+*.aux
+*.idx
+*.log
+*.pdf
+
+# Jupyter
+.ipynb_checkpoints
+__pycache__
+
+# Build, config & version
 build
+#bin/Denali-config
+inc/NTK/version.h
+
+
+# MacOS
+.DS_Store
+.vscode
