@@ -79,7 +79,7 @@ endif()
 
 
 
-set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "/Users/s2569857/Programs/NNAD/include;/Users/s2569857/Programs/Denali/include;/Users/s2569857/Programs/MontBlanc/include;/Users/s2569857/Programs/NangaParbat-beta/include;/Users/s2569857/Programs/cln/include;/Users/s2569857/Programs/APFELXX/include;/opt/homebrew/include;/Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk/usr/include/c++/v1;/Library/Developer/CommandLineTools/usr/lib/clang/15.0.0/include;/Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk/usr/include;/Library/Developer/CommandLineTools/usr/include")
+set(CMAKE_CXX_IMPLICIT_INCLUDE_DIRECTORIES "/Users/s2569857/Programs/benchmark/include;/Users/s2569857/Programs/NNAD/include;/Users/s2569857/Programs/Denali/include;/Users/s2569857/Programs/MontBlanc/include;/Users/s2569857/Programs/NangaParbat-beta/include;/Users/s2569857/Programs/cln/include;/Users/s2569857/Programs/APFELXX/include;/opt/homebrew/include;/Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk/usr/include/c++/v1;/Library/Developer/CommandLineTools/usr/lib/clang/15.0.0/include;/Library/Developer/CommandLineTools/SDKs/MacOSX14.0.sdk/usr/include;/Library/Developer/CommandLineTools/usr/include")
 set(CMAKE_CXX_IMPLICIT_LINK_LIBRARIES "c++")
-set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "/Users/s2569857/Programs/APFELXX/lib;/Users/s2569857/Codes/NTK-interface")
+set(CMAKE_CXX_IMPLICIT_LINK_DIRECTORIES "/Users/s2569857/Programs/APFELXX/lib;/Users/s2569857/codes/NTK-interface")
 set(CMAKE_CXX_IMPLICIT_LINK_FRAMEWORK_DIRECTORIES "")

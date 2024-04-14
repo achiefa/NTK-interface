@@ -1,8 +1,0 @@
-/Users/s2569857/Programs/NTK/bin/train
-/Users/s2569857/Programs/NTK/lib/libNTK.dylib
-/Users/s2569857/Programs/NTK/include/NTK/direxists.h
-/Users/s2569857/Programs/NTK/include/NTK/AnalyticCostFunction.h
-/Users/s2569857/Programs/NTK/include/NTK/version.h
-/Users/s2569857/Programs/NTK/include/NTK/version.h.in
-/Users/s2569857/Programs/NTK/include/NTK/Timer.h
-/Users/s2569857/Programs/NTK/include/NTK/IterationCallBack.h
