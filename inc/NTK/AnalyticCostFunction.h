@@ -29,7 +29,7 @@ namespace NTK
   class AnalyticCostFunction : public ceres::CostFunction
   {
   public:
-    AnalyticCostFunction(nnad::FeedForwardNN<double> *NN, vecdata const &Data, bool NUMERIC);
+    AnalyticCostFunction(nnad::FeedForwardNN<double> *NN, vecdata const &Data);
     //virtual ~AnalyticCostFunction();
 
     double GetResidual(const int &) const;

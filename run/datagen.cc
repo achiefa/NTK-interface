@@ -119,6 +119,7 @@ int main(int argc, char *argv[])
         emitter << YAML::Key << "Noise" << YAML::Value << std::get<2>(d);
         emitter << YAML::Key << "Truth" << YAML::Value << truth[id];
         emitter << YAML::EndMap;
+        id++;
     }
     emitter << YAML::EndSeq;
     emitter << YAML::Newline << YAML::Newline;

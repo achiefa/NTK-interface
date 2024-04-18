@@ -27,7 +27,7 @@ namespace NTK
                           int replica,
                           std::vector<double*> const& Parameters,
                           AnalyticCostFunction *chi2t,
-                          AnalyticCostFunction *chi2v);
+                          AnalyticCostFunction *chi2v = nullptr);
 
         virtual ceres::CallbackReturnType operator()(const ceres::IterationSummary &);
 

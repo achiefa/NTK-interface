@@ -1,25 +1,29 @@
 #include "NTK/AnalyticCostFunction.h"
 
+#define KNRM  "\x1B[0m"
+#define KRED  "\x1B[31m"
+#define KGRN  "\x1B[32m"
+#define KYEL  "\x1B[33m"
+#define KBLU  "\x1B[34m"
+#define KMAG  "\x1B[35m"
+#define KCYN  "\x1B[36m"
+#define KWHT  "\x1B[37m"
+
 namespace NTK
 {
     //____________________________________________
-    AnalyticCostFunction::AnalyticCostFunction(nnad::FeedForwardNN<double> *NN,
-                        vecdata const &Data,
-                        bool NUMERIC) : _nn(NN),
-                                        _Data(Data)
-                                        
+    AnalyticCostFunction::AnalyticCostFunction(nnad::FeedForwardNN<double> *NN, vecdata const &Data):
+    _nn(NN),
+    _Data(Data)                                    
     {
         _Np = _nn->GetParameterNumber();
         _ndata = _Data.size();
         _OutSize = _nn->GetArchitecture().back();
 
-        if (!NUMERIC)
-            {
-                set_num_residuals(int(_ndata));
+        set_num_residuals(int(_ndata));
 
-                for (int ip = 0; ip < _Np; ip++)
-                    mutable_parameter_block_sizes()->push_back(1);
-            }
+        for (int ip = 0; ip < _Np; ip++)
+          mutable_parameter_block_sizes()->push_back(1);
     }
 
   //_________________________________________________________________________________
@@ -30,11 +34,19 @@ namespace NTK
     const std::vector<double> error = std::get<2>(_Data[id]);
     const std::vector<double> nnx = _nn->Evaluate(input);
 
-    std::vector<double> res;
+    std::vector<double> res (target.size(), 0.);
     std::transform(nnx.begin(), nnx.end(), target.begin(), res.begin(), [] (double const& n, double const& t) { return n - t; });
     std::transform(res.begin(), res.end(), error.begin(), res.begin(), [] (double const& r, double const& e) { return r / e; });
-
-    return sqrt(std::inner_product(res.begin(), res.end(), res.begin(), double(0.0)));;
+    double result = sqrt(std::inner_product(res.begin(), res.end(), res.begin(), double(0.0)));
+    if (id == 5 && false){
+      printf("\n" KRED "Input value: " KNRM " %f \n", input[0]);
+      printf(KRED "Target value: " KNRM " %f \n", target[0]);
+      printf(KRED "NN value: " KNRM " %f \n", nnx[0]);
+      printf(KRED "NN derivative: " KNRM " %f \n", _nn->Derive(input)[1]);
+      printf(KRED "Residual value: " KNRM " %f \n", result);
+      printf("_________________________\n");
+    }
+    return result;
   }
 
   //_________________________________________________________________________________
@@ -43,7 +55,7 @@ namespace NTK
     std::vector<double> res (_ndata, 0.);
     for (int id = 0; id < _ndata; id++)
       res[id] = GetResidual(id);
-    
+  
     return res;
   }
 
@@ -51,9 +63,11 @@ namespace NTK
   bool AnalyticCostFunction::Evaluate(double const *const *parameters, double *residuals, double **jacobians) const
   {
     std::vector<double> pars(_Np);
-
     for (int i = 0; i < _Np; i++)
       pars[i] = parameters[i][0];
+
+    //for (int i = 0; i < pars.size(); i++)
+    //  printf(KBLU "Parameter %d : " KNRM " %f \n", i, pars[i]);
 
     _nn->SetParameters(pars);
 
@@ -62,50 +76,33 @@ namespace NTK
     { 
         // For each point in the data set
         for (int id = 0; id < _ndata; id++)
+          {
+            residuals[id] = GetResidual(id);
+            std::vector<double> input = std::get<0>(_Data[id]);
+            std::vector<double> target = std::get<1>(_Data[id]);
+            std::vector<double> error = std::get<2>(_Data[id]);
+
+            std::vector<double> nnx = _nn->Evaluate(input);
+            std::vector<double> dnnx = _nn->Derive(input);
+
+            for (int ip = 0; ip < _Np; ip++)
             {
+              if (jacobians[ip] == nullptr)
+                  continue;
+              jacobians[ip][id] = 0.;
 
-            const std::vector<double> input = std::get<0>(_Data[id]);
-            //const std::vector<double> target = std::get<1>(_Data[id]);
-            const std::vector<double> error = std::get<2>(_Data[id]);
-
-            //const std::vector<double> nnx = _nn->Evaluate(input);
-            
-            // Generalise for multiple output layers
-            // Each point in the dataset may be R^n. In order to
-            // compute the residual for a n-dimensional vector, 
-            // I will compute norm of the difference, weighted
-            // by the std.
-            //std::vector<double> res;
-            //std::transform(nnx.begin(), nnx.end(), target.begin(), res.begin(), [] (double const& n, double const& t) { return n - t; });
-            //std::transform(res.begin(), res.end(), error.begin(), res.begin(), [] (double const& r, double const& e) { return r / e; });
-            residuals[id] = GetResidual(id); //sqrt(std::inner_product(res.begin(), res.end(), res.begin(), double(0.0)));
-            const std::vector<double> dnnx = _nn->Derive(input);
-
-            for (int ip = 0; ip < _Np; ip++){
-              jacobians[ip][id] = double(0);
-              for (int i = 0; i < _OutSize; i++){
-                // TODO Check this funciton
-                jacobians[ip][id] += dnnx[i + _OutSize * (ip + 1)] / error[i];
-              }
+              for (int k = 0; k < _OutSize; k++)
+                jacobians[ip][id] += dnnx[k + _OutSize * (ip + 1)] * ( nnx[k] - target[k] ) / ( error[k] * error[k] );
+              
+              jacobians[ip][id] /= residuals[id];
             }
           }
     }
-
     // Only residuals
     else
-    {
+    {   
         for (int id = 0; id < _ndata; id++)
-            {
-              //const std::vector<double> input = std::get<0>(_Data[id]);
-              //const std::vector<double> target = std::get<1>(_Data[id]);
-              //const std::vector<double> error = std::get<2>(_Data[id]);
-              //const std::vector<double> nnx = _nn->Evaluate(input);
-
-              //std::vector<double> res;
-              //std::transform(nnx.begin(), nnx.end(), target.begin(), res.begin(), [] (double const& n, double const& t) { return n - t; });
-              //std::transform(res.begin(), res.end(), error.begin(), res.begin(), [] (double const& r, double const& e) { return r / e; });
-              residuals[id] = GetResidual(id);//sqrt(std::inner_product(res.begin(), res.end(), res.begin(), double(0.0)));
-            }
+          residuals[id] = GetResidual(id);
     }
     return true;
   }
@@ -113,11 +110,8 @@ namespace NTK
   //_________________________________________________________________________________
   double AnalyticCostFunction::Evaluate() const
   {
-    // Initialise chi2 and number of data points
-
     const std::vector<double> res = GetResiduals();
     double chi2 = std::inner_product(res.begin(), res.end(), res.begin(), 0.);
-
     return chi2 / _ndata;
   }
 
