@@ -48,6 +48,7 @@ int main(int argc, char *argv[])
             }
             else if (buffer.empty() || buffer == "y")
             {
+                printf("Overwriting data file...\n");
                 fs::remove(OutputFolder + "/Data.yaml");
                 EXIT = 0;
             }
