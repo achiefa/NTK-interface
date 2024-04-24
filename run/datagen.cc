@@ -6,11 +6,12 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <iostream>
+#include <string>
+#include <sstream>
 
 double P10(double x) { return (1. / 256) * (46189 * pow(x, 10) - 109395 * pow(x, 8) + 90090 * pow(x, 6) - 30030 * pow(x, 4) + 3465 * pow(x, 2) - 63); }
 int main(int argc, char *argv[])
 {
-  // SET A FLAG TO STOP AT INITIALISATION
     if ((argc - optind) != 2)
         {
           std::cerr << "Usage of " << argv[0] << ": <runcard> <result folder>" << std::endl;
@@ -30,10 +31,40 @@ int main(int argc, char *argv[])
         printf("Folder %s does not exist. Creating a new one... \n", ResultFolder.c_str());
         fs::create_directories(ResultFolder);
     }
-    fs::create_directories(OutputFolder);
 
-    // Create data folder
-    const std::string DataFolder = OutputFolder + "/data";
+    if (NTK::is_dir(OutputFolder))
+    {
+        printf("A fit with name %s is already present in %s. Do you want to overwrite it? [(y)/n] \n", ResultFolder.c_str(), OutputFolder.c_str());
+
+        int EXIT = 1;
+        while(EXIT)
+        {
+            std::string buffer;
+            std::getline(std::cin, buffer);
+            if (buffer == "n")
+            {
+                printf("Interrupting data generation...\n");
+                exit(-1);
+            }
+            else if (buffer.empty() || buffer == "y")
+            {
+                fs::remove(OutputFolder + "/Data.yaml");
+                EXIT = 0;
+            }
+            else
+            {
+                printf("Choose a valid answer: [(y),n] \n");
+            }
+        }
+    }
+    else fs::create_directory(OutputFolder);
+
+    // Copy input card into fit folder and rename it
+    fs::copy(InputCardPath, OutputFolder, fs::copy_options::overwrite_existing);
+    std::string FitName = InputCardPath.substr(InputCardPath.find_last_of("/") + 1, InputCardPath.find(".yaml") - InputCardPath.find_last_of("/") - 1);
+    std::string oldname = OutputFolder + "/" + FitName + ".yaml";
+    std::string newname = OutputFolder + "/meta.yaml";
+    fs::rename(oldname, newname);
 
     // Read Input Card
     YAML::Node InputCard = YAML::LoadFile(InputCardPath);
