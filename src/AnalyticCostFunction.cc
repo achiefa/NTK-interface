@@ -38,14 +38,6 @@ namespace NTK
     std::transform(nnx.begin(), nnx.end(), target.begin(), res.begin(), [] (double const& n, double const& t) { return n - t; });
     std::transform(res.begin(), res.end(), error.begin(), res.begin(), [] (double const& r, double const& e) { return r / e; });
     double result = sqrt(std::inner_product(res.begin(), res.end(), res.begin(), double(0.0)));
-    if (id == 5 && false){
-      printf("\n" KRED "Input value: " KNRM " %f \n", input[0]);
-      printf(KRED "Target value: " KNRM " %f \n", target[0]);
-      printf(KRED "NN value: " KNRM " %f \n", nnx[0]);
-      printf(KRED "NN derivative: " KNRM " %f \n", _nn->Derive(input)[1]);
-      printf(KRED "Residual value: " KNRM " %f \n", result);
-      printf("_________________________\n");
-    }
     return result;
   }
 
@@ -66,14 +58,11 @@ namespace NTK
     for (int i = 0; i < _Np; i++)
       pars[i] = parameters[i][0];
 
-    //for (int i = 0; i < pars.size(); i++)
-    //  printf(KBLU "Parameter %d : " KNRM " %f \n", i, pars[i]);
-
     _nn->SetParameters(pars);
 
     // Residuals and Jacobian
     if (jacobians != NULL)
-    { 
+    {
         // For each point in the data set
         for (int id = 0; id < _ndata; id++)
           {
@@ -88,12 +77,13 @@ namespace NTK
             for (int ip = 0; ip < _Np; ip++)
             {
               if (jacobians[ip] == nullptr)
-                  continue;
+                continue;
+
               jacobians[ip][id] = 0.;
 
               for (int k = 0; k < _OutSize; k++)
                 jacobians[ip][id] += dnnx[k + _OutSize * (ip + 1)] * ( nnx[k] - target[k] ) / ( error[k] * error[k] );
-              
+
               jacobians[ip][id] /= residuals[id];
             }
           }
