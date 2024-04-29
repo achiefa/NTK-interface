@@ -77,20 +77,27 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
             _BestParameters = vpar;
           }
       }
-  
-
 
     // Training chi2's
     _chi2t->SetParameters(vpar);
     const double chi2t_tot = _chi2t->Evaluate();
+
     nnad::FeedForwardNN<double> *NN = _chi2t->GetNN();
-     
-    // NTK
-    // Retrieve vector of data
-    const std::vector<double> input = std::get<0>(_chi2t->GetData()[0]);
-    nnad::Matrix NTK = NN->NTK(input, input);
-    std::cout << "CIAOOOOOOOOOO ___________________" << std::endl;
-    NTK.Display();
+
+    // Store value as row major order
+    int ndata = _chi2t->GetData().size();
+    int Size = 4;
+    int StepSize = int(ndata / 4);
+    nnad::Matrix NTK {Size, Size, std::vector<double> (Size * Size, 0.)};
+    for (int a = 0; a < Size; a++){
+      for (int b = 0; b < Size; b++){
+          std::vector<double> input_a = std::get<0>(_chi2t->GetData()[(a) * StepSize]);
+          std::vector<double> input_b = std::get<0>(_chi2t->GetData()[(b) * StepSize]);
+          NTK.SetElement(a,b, NN->NTK(input_a, input_b).GetElement(0,0));
+      }
+    }
+
+    //NTK.Display();
 
     // Output parameters into yaml file
     YAML::Emitter emitter;
@@ -103,6 +110,7 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
     if (_VALIDATION)
       emitter << YAML::Key << "validation chi2" << YAML::Value << chi2v;
     //emitter << YAML::Key << "parameters" << YAML::Value << YAML::Flow << vpar;
+    emitter << YAML::Key << "NTK" << YAML::Value << YAML::Flow << NTK.GetVector();
     emitter << YAML::EndMap;
     emitter << YAML::EndSeq;
     emitter << YAML::Newline;
