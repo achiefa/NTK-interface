@@ -1,0 +1,87 @@
+\documentclass[12pt,twoside,english]{paper}
+\usepackage[T1]{fontenc}
+\usepackage{tgadventor}
+\usepackage[latin9]{inputenc}
+\usepackage{xcolor}
+\usepackage{float}
+\usepackage{physics}
+\usepackage{amssymb}
+\usepackage{mathtools}
+\usepackage{bbold}
+\setlength{\jot}{10pt}
+\usepackage{amsmath}
+\usepackage[notcite]{showkeys}
+\usepackage[colorlinks=true, linkcolor=black!50!blue, urlcolor=blue, citecolor=blue, anchorcolor=blue]{hyperref}
+\usepackage[font=small,labelfont=bf,margin=0mm,labelsep=period,tableposition=top]{caption}
+\usepackage{graphicx}
+\usepackage{slashed}
+\usepackage{nccmath}
+\usepackage{tensor}
+\usepackage{tikz}
+\usetikzlibrary{shapes.misc, decorations.markings}
+\usepackage{tcolorbox}
+%\graphicspath{ {images/} }
+\usepackage[a4paper]{geometry}
+\geometry{verbose,tmargin=3cm,bmargin=2.5cm,lmargin=2cm,rmargin=2cm}
+%\usepackage{biblatex}
+%\addbibresource{./bibfile.bib}
+\bibliographystyle{UTPstyle}
+
+% When a pair ⟨key⟩=⟨value⟩ is processed, the following happens:
+% 
+% 1. If the ⟨key⟩ is a full key (starts with a slash) it is handled directly as described in Section 87.
+% 
+% 2. Otherwise (which is usually the case), it is checked whether /tikz/⟨key⟩ is a key and, if so, it is executed.
+% 
+% 3. Otherwise, it is checked whether /pgf/⟨key⟩ is a key and, if so, it is executed.
+% 
+% 4. Otherwise, it is checked whether ⟨key⟩ is a color and, if so, color=⟨key⟩ is executed.
+% 
+% 5. Otherwise, it is checked whether ⟨key⟩ contains a dash and, if so, arrows=⟨key⟩ is executed.
+% 
+% 6. Otherwise, it is checked whether ⟨key⟩ is the name of a shape and, if so, shape=⟨key⟩ is executed.
+% 
+% 7. Otherwise, an error message is printed.
+
+\begin{document}
+\newcommand{\T}[1]{\textrm{#1}}
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+\renewcommand{\it}[1]{\textit{#1}}
+\renewcommand{\L}{\mathcal{L}}
+\newcommand{\A}{\mathcal{A}}
+\renewcommand{\a}{\alpha}
+\newcommand{\pmu}{\partial_{\mu}}
+\newcommand{\pnu}{\partial_{\nu}}
+\newcommand{\pt}{\partial_t}
+\newcommand{\tphi}{\tilde{\phi}}
+\newcommand{\tL}{\tilde{L}}
+\newcommand{\hlorange}[1]{\colorbox{orange!50}{$\displaystyle#1$}}
+\renewcommand{\tilde}[1]{\widetilde{#1}}
+
+\title{Serial code optimisation comes first}
+
+\maketitle
+
+\section{Introduction}
+Before moving to parallel programming, one first needs to understand how a serial code can be optimised to the maximum. Indeed, converting
+a non-optimised serial code into a parallel one may be a waste of resources. The reason being that the potential improvements in the
+performances is not the result of a smart code, but instead the consequence of giving more computing power. In other words, it is equivalent
+to providing a heavy car with a powerful engine -- the car will go surely faster, but mainly because the huge engine rather than the weight.
+If the car was lighter (hence optimised), it would need a less powerful engine to reach the same performance and, if the engineers do a good job,
+maybe exceed them. The same argument applies for parallel programming -- before writing a parallel algorithm one needs to fully utilise the 
+compute capabilities encoded in the serial version of the codes. This requires the understanding of the modern hardware architecture features.
+The present section is focused on \textbf{memory system}, which is fundamental to understand how modern microprocessors exchange data.
+
+\section{Memory hierarchy}
+Nowadays, microprocessors can process data at a much faster rate than reading data from main memory. This problem -- known as \textit{von Neumann bottleneck} --
+causes codes to be limited by memory access rather than the actual computation. To mitigate this limitation, modern CPUs implement a fast cache hierarchy that
+mediates between the data transfer between the CPU and the main memory. When writing a parallel code, one needs to take advantage of this cache-based memory
+subsystems.
+
+\subsection{The von Neumann bottleneck}
+In the classical von Neumann architecture a processor (CPU) is connected to main memory through a bus. This was reasonably well balanced in the past. However,
+in the past decades computation speed grew at a much faster rate compared to main memory access speed resulting in a significant performance gap.
+
+
+
+\end{document}
