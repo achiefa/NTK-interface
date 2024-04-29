@@ -61,9 +61,7 @@ int main(int argc, char *argv[])
   // ====================================================
   int Seed = InputCard["Seed"].as<int>() + replica;
   std::vector<int> NNarchitecture = InputCard["NNarchitecture"].as<std::vector<int>>();
-  nnad::FeedForwardNN<double> *nn = new nnad::FeedForwardNN<double> (NNarchitecture, Seed, false,
-                                        nnad::Tanh<double>,  nnad::dTanh<double>,
-                                        nnad::OutputFunction::LINEAR, nnad::InitDistribution::GAUSSIAN, {}, true);
+  nnad::FeedForwardNN<double> *nn = new nnad::FeedForwardNN<double>(NNarchitecture, Seed, nnad::OutputFunction::LINEAR);
 
   // ============================================================
   // Run the solver with some options.
