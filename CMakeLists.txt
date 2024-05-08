@@ -10,7 +10,7 @@ project(NTK)
 set(NTK 1.0.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_CXX_EXTENSIONS ON)
 
 # Determine the compiler for the current system
 if (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -57,6 +57,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNAD_CFLAGS} ${EIGEN3_CFLAGS} ${Ceres_
 # build target library
 add_subdirectory(src)
 add_subdirectory(run)
+add_subdirectory(test)
 
 # Installing and Testing
 # ______________________________________________________________________________________

@@ -31,7 +31,7 @@ int main()
   {
     [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
     {
-        nnad::FeedForwardNN<double> aux_nn {arch, 0, nnad::OutputFunction::QUADRATIC, false};
+        nnad::FeedForwardNN<double> aux_nn{nn};
         aux_nn.SetParameters(parameters);
 
         return aux_nn.Derive(x);
@@ -57,9 +57,10 @@ int main()
         }
         for(int i = 0; i < arch.back(); i++) {
             if (nu == 0)
-                std::printf("d_%.1d phi_%.1d : %.5f\n", mu + 1, i, results[mu][i + (nu) * arch.back()]); 
+              std::printf("d_%.1d phi_%.1d : %.5f\n", mu + 1, i, results[mu][i + (nu) * arch.back()]);
             else
-                std::printf("d_%.1d d_%.1d phi_%.1d : %.5f\n", mu + 1, nu, i, results[mu][i + (nu) * arch.back()]); 
+              // This is the function to be used if one wants to neglect the first derivatives
+              std::printf("d_%.1d d_%.1d phi_%.1d : %.5f\n", mu + 1, nu, i, results[mu][i + (nu) * arch.back()]);
         }
         if (nu == 0)
             std::cout << "######################" << std::endl;
