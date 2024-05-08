@@ -1,0 +1,2 @@
+add_executable(second_derivative second_derivative.cc)
+target_link_libraries(second_derivative NTK)
