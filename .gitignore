@@ -51,6 +51,8 @@ build
 #bin/Denali-config
 inc/NTK/version.h
 
+#.logs
+.logs
 
 # MacOS
 .DS_Store
