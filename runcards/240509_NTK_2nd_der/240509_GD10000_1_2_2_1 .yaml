@@ -1,5 +1,5 @@
 Seed: 10313
-NNarchitecture: [1, 10, 10, 1]
+NNarchitecture: [1, 2, 2, 1]
 Derivatives: Analytic
 
 #PseudoData options
@@ -16,4 +16,3 @@ max_num_iterations: 10000
 #function_tolerance: 1.e-7
 #gradient_tolerance: 1.e-7
 #parameter_tolerance: 1.e-7
-
