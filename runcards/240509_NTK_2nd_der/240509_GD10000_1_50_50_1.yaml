@@ -1,0 +1,19 @@
+Seed: 10313
+NNarchitecture: [1, 50, 50, 1]
+Derivatives: Analytic
+
+#PseudoData options
+Ndata: 100
+xmin: -1
+xmax: 1
+yshift: 1
+
+noise_mean: 0
+noise_sd: 0.1 #10%
+
+minimizer_type: "GD"
+max_num_iterations: 10000
+#function_tolerance: 1.e-7
+#gradient_tolerance: 1.e-7
+#parameter_tolerance: 1.e-7
+
