@@ -7,6 +7,8 @@
 #include <sys/stat.h>
 #include <iostream>
 
+#include "spdlog/spdlog.h"
+
 
 double P10(double x) { return (1. / 256) * (46189 * pow(x, 10) - 109395 * pow(x, 8) + 90090 * pow(x, 6) - 30030 * pow(x, 4) + 3465 * pow(x, 2) - 63); }
 int main(int argc, char *argv[])
