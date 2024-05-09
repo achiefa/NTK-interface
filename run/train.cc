@@ -61,9 +61,8 @@ int main(int argc, char *argv[])
   // ====================================================
   int Seed = InputCard["Seed"].as<int>() + replica;
   std::vector<int> NNarchitecture = InputCard["NNarchitecture"].as<std::vector<int>>();
-  nnad::FeedForwardNN<double> *nn = new nnad::FeedForwardNN<double> (NNarchitecture, Seed, false,
-                                        nnad::Tanh<double>,  nnad::dTanh<double>,
-                                        nnad::OutputFunction::LINEAR, nnad::InitDistribution::GAUSSIAN, {}, true);
+
+  nnad::FeedForwardNN<double> *nn = new nnad::FeedForwardNN<double>(NNarchitecture, Seed, nnad::OutputFunction::LINEAR);
 
   // ============================================================
   // Run the solver with some options.
@@ -89,9 +88,6 @@ int main(int argc, char *argv[])
 
   // Solve
   ceres::Solver::Options options;
-  options.minimizer_type = ceres::LINE_SEARCH;
-  options.line_search_direction_type = ceres::STEEPEST_DESCENT;
-  options.line_search_type = ceres::ARMIJO;
   options.max_num_iterations = InputCard["max_num_iterations"].as<int>();
   options.minimizer_progress_to_stdout = true;
   options.function_tolerance  = 1e-7;
@@ -101,8 +97,6 @@ int main(int argc, char *argv[])
 
   // Iteration callback
   options.update_state_every_iteration = true;
-  //NTK::IterationCallBack *callback = new NTK::IterationCallBack(false, OutputFolder, replica, initPars, analytic_chi2cf);
-  //options.callbacks.push_back(callback);
 
   ceres::Solver::Summary summary;
 
