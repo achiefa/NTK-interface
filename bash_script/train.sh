@@ -5,6 +5,7 @@ set -e -o pipefail
 # shellcheck source=concurrent.lib.sh
 source "/Users/s2569857/Codes/bash-concurrent/concurrent.lib.sh"
 PATH_TO_SCRIPT="/Users/s2569857/Codes/NTK-interface/build/run"
+PATH_TO_FIT_FOLDER=$2
 TRAIN="${PATH_TO_SCRIPT}/train"
 CONCURRENT_LIMIT=10
 
@@ -21,12 +22,7 @@ main() {
     local i
 
     for (( i = 1; i <= $1; i++ )); do
-        if [ $i -eq 1 ]
-        then
-            args+=(- "Replica ${i}" "./train" $1 "../../runcards/InputCard.yaml" "test" "./test/InputCard/Data.yaml" --and-then)
-        else
-            args+=(- "Replica ${i}" "./train" $1 "../../runcards/InputCard.yaml" "test" "./test/InputCard/Data.yaml")
-        fi
+        args+=(- "Replica ${i}" ${TRAIN} $i $2)
     done
 
     concurrent "${args[@]}"
