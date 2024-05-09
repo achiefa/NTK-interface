@@ -96,8 +96,8 @@ int main(int argc, char *argv[])
 
   // Iteration callback
   options.update_state_every_iteration = true;
-  //NTK::IterationCallBack *callback = new NTK::IterationCallBack(false, OutputFolder, replica, initPars, analytic_chi2cf);
-  //options.callbacks.push_back(callback);
+  NTK::IterationCallBack *callback = new NTK::IterationCallBack(false, FitFolder, replica, initPars, analytic_chi2cf);
+  options.callbacks.push_back(callback);
 
   ceres::Solver::Summary summary;
 
