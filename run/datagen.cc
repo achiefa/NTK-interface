@@ -60,6 +60,9 @@ int main(int argc, char *argv[])
     }
     else fs::create_directory(OutputFolder);
 
+    if (!NTK::is_dir(OutputFolder + "/output"))
+        fs::create_directories(OutputFolder + "/output");
+
     // Copy input card into fit folder and rename it
     fs::copy(InputCardPath, OutputFolder, fs::copy_options::overwrite_existing);
     std::string FitName = InputCardPath.substr(InputCardPath.find_last_of("/") + 1, InputCardPath.find(".yaml") - InputCardPath.find_last_of("/") - 1);

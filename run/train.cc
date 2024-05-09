@@ -32,11 +32,6 @@ int main(int argc, char *argv[])
   const std::string InputCardPath = FitFolder + "/meta.yaml";
   const std::string DataFile = FitFolder + "/Data.yaml";
 
-  if (!NTK::is_dir(FitFolder + "/output"))
-  {
-    fs::create_directories(FitFolder + "/output");
-  }
-
   // Read Input Card
   YAML::Node InputCard = YAML::LoadFile(InputCardPath);
 
