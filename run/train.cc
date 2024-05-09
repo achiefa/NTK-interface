@@ -24,10 +24,10 @@ int main(int argc, char *argv[])
   // Require that the result folder exists. If not throw an exception. 
   namespace fs = std::filesystem; 
   if (!NTK::is_dir(FitFolder))
-  {
-    printf("Folder %s does not exist. Creating a new one... \n", FitFolder.c_str());
-    fs::create_directories(FitFolder);
-  }
+    {
+      std::cerr << "Folder " << FitFolder.c_str() << " does not exist.\n";
+      exit(-1);
+    }
 
   const std::string InputCardPath = FitFolder + "/meta.yaml";
   const std::string DataFile = FitFolder + "/Data.yaml";
