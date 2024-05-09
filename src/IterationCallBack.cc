@@ -39,16 +39,6 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
 
     // Create output folder but throw an exception if it does not
     // exist.
-
-    struct stat buffer;
-
-    if (stat(OutputFolder.c_str(), &buffer) != 0)
-        system(("mkdir " + OutputFolder).c_str());
-
-    // Create log folder
-    std::string LogFolder = OutputFolder + "/log/";
-    if (stat(LogFolder.c_str(), &buffer) != 0)
-        system(("mkdir " + OutputFolder + "/log/").c_str());
     }
 
     //_________________________________________________________________________
