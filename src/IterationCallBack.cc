@@ -6,6 +6,9 @@
 #include <sys/stat.h>
 #include <yaml-cpp/yaml.h>
 
+// Eigen tensors
+#include <unsupported/Eigen/CXX11/Tensor>
+
 namespace NTK
 {
   typedef std::vector<std::vector<double>> vec_vec_data;
@@ -16,6 +19,28 @@ namespace NTK
 void inthand(int signum)
 {
   stop = 1;
+}
+
+
+std::vector<double> HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double>parameters,
+                                          std::vector<double> input,
+                                          int const& Np,
+                                          int const& Nout,
+                                          double const& eps)
+{
+  // Initialise std::function for second derivative
+  std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN
+  {
+    [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
+    {
+      nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+      aux_nn.SetParameters(parameters);
+      return aux_nn.Derive(x);
+    }
+  };
+
+  return NTK::FiniteDifferenceVec(dNN, parameters, input, Np + Nout, eps);
 }
 
 //_________________________________________________________________________
@@ -76,45 +101,68 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
     const double chi2t_tot = _chi2t->Evaluate();
 
     nnad::FeedForwardNN<double> *NN = _chi2t->GetNN();
+    int Nout = NN->GetArchitecture().back();
     std::vector<double> parameters = NN->GetParameters();
 
-    // Initialise std::function for second derivative
-    std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN
-    {
-      [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
-      {
-        nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
-        aux_nn.SetParameters(parameters);
-        return aux_nn.Derive(x);
-      }
-    };
-
     // Store value as row major order
+    // TO-DO
+    // I would rather prefer to read the step size from the config
+    // parser, or conceive something more general and not hard-coded.
+    // Also the calculation of `StepSize` is not free from errors and
+    // undesired outcomes.
     int ndata = _chi2t->GetData().size();
     int Size = 4;
     int StepSize = int(ndata / 4);
-    nnad::Matrix NTK {Size, Size, std::vector<double> (Size * Size, 0.)};
     const double eps = 1.e-5;
-    std::vector<std::vector<double>> d_NN;
-    auto *ddNN = new vec_vec_data[Size];
 
-    // Iterate over range of data
-    // TODO
-    // Both vectors for first and second order derivatives contain
-    // spurious terms in the first positions of the arrays. These spurious terms
-    // (non-derived outputs and first derivatives of the ouputs respectively)
-    // should be removed before saving them to data.
+    Eigen::Tensor<double, 3> d_NN (Size, Nout, Np);
+    Eigen::Tensor<double, 4> dd_NN (Size, Nout, Np, Np);
+    d_NN.setZero();
+    dd_NN.setZero();
+
     for (int a = 0; a < Size; a++){
       std::vector<double> input_a = std::get<0>(_chi2t->GetData()[(a) * StepSize]);
 
-      // Compute first and second derivative of the network
-      d_NN.push_back(NN->Derive(input_a));
-      ddNN[a] = NTK::FiniteDifference(dNN, parameters, input_a, eps);
-      for (int b = 0; b < Size; b++){
-          std::vector<double> input_b = std::get<0>(_chi2t->GetData()[(b) * StepSize]);
-          NTK.SetElement(a,b, NN->NTK(input_a, input_b).GetElement(0,0));
-      }
+      // -------------------------- First derivative -------------------------
+      // .data() is needed because returns a direct pointer to the memory array used internally by the vector
+      Eigen::TensorMap< Eigen::Tensor<double, 2, Eigen::ColMajor> > temp (NN->Derive(input_a).data(), Nout, Np + 1); // Col-Major
+
+      // Get rid of the first column (the outputs) and stores only first derivatives
+      Eigen::array<Eigen::Index, 2> offsets = {0, 1};
+      Eigen::array<Eigen::Index, 2> extents = {Nout, Np};
+      d_NN.chip(a,0) = temp.slice(offsets, extents);
+
+
+      // -------------------------- Second derivative -------------------------
+      std::vector<double> results_vec = NTK::HelperSecondFiniteDer(NN, parameters, input_a, Np, Nout, eps); // Compute second derivatives
+
+      // Store into ColMajor tensor
+      // The order of the dimensions has been tested in "SecondDerivative", and worked out by hand.
+      Eigen::TensorMap< Eigen::Tensor<double, 3, Eigen::ColMajor> > ddNN (results_vec.data(), Nout, Np + 1, Np);
+
+      // Swap to ColMajor for compatibility and reshape
+      Eigen::array<int, 3> new_shape{{0, 2, 1}};
+      Eigen::Tensor<double, 3> ddNN_reshape = ddNN.shuffle(new_shape);
+
+      // Get rid of the first column (the firs derivatives) and stores only second derivatives
+      Eigen::array<Eigen::Index, 3> offsets_3 = {0, 0, 1};
+      Eigen::array<Eigen::Index, 3> extents_3 = {Nout, Np, Np};
+      dd_NN.chip(a,0) = ddNN_reshape.slice(offsets_3, extents_3);
     }
+
+    // Contract first derivatives to get the NTK
+    Eigen::array<Eigen::IndexPair<int>, 1> double_contraction = { Eigen::IndexPair<int>(2,2) };
+    Eigen::Tensor<double, 4> NTK_Eigen = d_NN.contract(d_NN, double_contraction);
+    std::vector<double> NTK_Eigen_vec ( NTK_Eigen.data(),  NTK_Eigen.data() + NTK_Eigen.size() );
+
+    // Contract first and second derivatives
+    Eigen::array<Eigen::IndexPair<int>, 0> tensor_product = {  };
+    Eigen::array<Eigen::IndexPair<int>, 2> first_contraction = { Eigen::IndexPair<int>(2,2), Eigen::IndexPair<int>(3,5) };
+    Eigen::Tensor<double, 6> d_mu_d_nu_f_ia = d_NN.contract(d_NN, tensor_product);
+    Eigen::Tensor<double, 6> O3 = dd_NN.contract(d_mu_d_nu_f_ia, first_contraction);
+    std::vector<double> O3_vec ( O3.data(),  O3.data() + O3.size() );
+
+    //_____________________________________________
 
     // Output parameters into yaml file
     YAML::Emitter emitter;
@@ -127,15 +175,8 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
     if (_VALIDATION)
       emitter << YAML::Key << "validation chi2" << YAML::Value << chi2v;
     //emitter << YAML::Key << "parameters" << YAML::Value << YAML::Flow << vpar;
-    emitter << YAML::Key << "NTK" << YAML::Value << YAML::Flow << NTK.GetVector();
-    emitter << YAML::Key << "dNN" << YAML::BeginMap;
-    for (int ix = 0; ix < Size; ix++)
-      emitter << YAML::Key << "input_" + std::to_string(ix+1) << YAML::Value << YAML::Flow << d_NN[ix];
-    emitter << YAML::EndMap;
-    emitter << YAML::Key << "ddNN" << YAML::BeginMap;
-    for (int ix = 0; ix < Size; ix++)
-      emitter << YAML::Key << "input_" + std::to_string(ix+1) << YAML::Value << YAML::Flow << ddNN[ix];
-    emitter << YAML::EndMap;
+    emitter << YAML::Key << "NTK_eigen" << YAML::Value << YAML::Flow << NTK_Eigen_vec;
+    emitter << YAML::Key << "O_3" << YAML::Value << YAML::Flow << O3_vec;
     emitter << YAML::EndMap;
     emitter << YAML::EndSeq;
     emitter << YAML::Newline;
