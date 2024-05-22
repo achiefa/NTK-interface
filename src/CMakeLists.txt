@@ -1,6 +1,7 @@
 set(src_files
     AnalyticCostFunction.cc
     IterationCallBack.cc
+    NumericalDerivative.cc
     )
 
 add_library (src OBJECT ${src_files})
