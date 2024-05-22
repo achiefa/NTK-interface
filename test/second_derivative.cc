@@ -1,5 +1,5 @@
 // NTK
-#include "NTK/derive.h"
+#include "NTK/NumericalDerivative.h"
 
 // NNAD
 #include "NNAD/FeedForwardNN.h"

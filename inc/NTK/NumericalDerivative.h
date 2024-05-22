@@ -3,51 +3,53 @@
 #include <algorithm>
 #include <iostream>
 
-/**
- * @brief First order derivative with finite difference
- *
- * Implement the numerical differentiation for the first order
- * derivative. In particular, given a function f(x), the
- * derivative is computed as
- *
- *      f'(x) = (f(x + h) - f(x - h)) / 2h.
- *
- * The output is a two-dimensional std::vector where the first
- * index runs over the parameters respect which the derivative
- * is computed. The second index runs over the possible entries
- * of f, which can be a n-dimensional vector.
- *
- * For instance, this function is used to compute numerically
- * the second derivative of the NNAD neural network starting
- * from the exact first order derivative. In this case, the
- * method `derive` returns a std::vector where the first
- * entries are the function evaluations for a given data point
- * x, whereas the other entries are the derivatives of each
- * output nodes of the NN (in case output were n-dimensional).
- * This method will then return a matrix where the first index
- * selects the parameter respect which the finite difference is
- * computed, whereas the internal index runs over the vector
- * returned by `derive`. In that particular case, `FiniteDifference`
- * will also compute the first numerical derivatives.
- *
- * @param f The std::function the we want to compute the derivative of. It must
- *          a function of the input vector `x` and the parameter vector.
- *          It returns a std::vector whose size is dim(f).
- * @param parameters Vector of parameters w.r.t we want to differentiate. This
- *                   will be passed in the std::function f.
- * @param x The data point at which we want to evaluate the derivative.
- * @param eps The 'small' increment in the finite difference.
- * @return vector<vector>> where the first index runs over the parameters and
- *         the second one runs over the dimension of f.
- * @todo The sta::function f has the input and the parameters as argument. This
- *       implicitly assumes that we are dealing with a parametrised function.
- *       However, this function can in principle be applied to plain function,
- *       namely those that only depends on the point x and whose parameters
- *       are fixed. It would be better if the signature of f were to contain
- *       only one single argument.
-*/
+#include <NNAd/FeedForwardNN.h>
+
 namespace NTK
 {
+  /**
+   * @brief First order derivative with finite difference
+   *
+   * Implement the numerical differentiation for the first order
+   * derivative. In particular, given a function f(x), the
+   * derivative is computed as
+   *
+   *      f'(x) = (f(x + h) - f(x - h)) / 2h.
+   *
+   * The output is a two-dimensional std::vector where the first
+   * index runs over the parameters respect which the derivative
+   * is computed. The second index runs over the possible entries
+   * of f, which can be a n-dimensional vector.
+   *
+   * For instance, this function is used to compute numerically
+   * the second derivative of the NNAD neural network starting
+   * from the exact first order derivative. In this case, the
+   * method `derive` returns a std::vector where the first
+   * entries are the function evaluations for a given data point
+   * x, whereas the other entries are the derivatives of each
+   * output nodes of the NN (in case output were n-dimensional).
+   * This method will then return a matrix where the first index
+   * selects the parameter respect which the finite difference is
+   * computed, whereas the internal index runs over the vector
+   * returned by `derive`. In that particular case, `FiniteDifference`
+   * will also compute the first numerical derivatives.
+   *
+   * @param f The std::function the we want to compute the derivative of. It must
+   *          a function of the input vector `x` and the parameter vector.
+   *          It returns a std::vector whose size is dim(f).
+   * @param parameters Vector of parameters w.r.t we want to differentiate. This
+   *                   will be passed in the std::function f.
+   * @param x The data point at which we want to evaluate the derivative.
+   * @param eps The 'small' increment in the finite difference.
+   * @return vector<vector>> where the first index runs over the parameters and
+   *         the second one runs over the dimension of f.
+   * @todo The sta::function f has the input and the parameters as argument. This
+   *       implicitly assumes that we are dealing with a parametrised function.
+   *       However, this function can in principle be applied to plain function,
+   *       namely those that only depends on the point x and whose parameters
+   *       are fixed. It would be better if the signature of f were to contain
+   *       only one single argument.
+  */
   std::vector<std::vector<double>> FiniteDifference (
     std::function<std::vector<double> (std::vector<double> const&, std::vector<double>)> f,
     std::vector<double> parameters, 
@@ -88,4 +90,17 @@ namespace NTK
     std::vector<double> const& x,
     int const& size_f,
     double const& eps);
+
+  namespace helper
+  {
+    /**
+     * @brief Helper function to compute second derivative of the NN
+    */
+    std::vector<double> HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double>parameters,
+                                          std::vector<double> input,
+                                          int const& Np,
+                                          int const& Nout,
+                                          double const& eps);
+  }
 }

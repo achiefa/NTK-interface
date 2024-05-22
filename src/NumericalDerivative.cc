@@ -67,4 +67,25 @@ namespace NTK
     }
     return results;
   }
+
+  //__________________________________________________________________________________________
+  std::vector<double> helper::HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double>parameters,
+                                          std::vector<double> input,
+                                          int const& Np,
+                                          int const& Nout,
+                                          double const& eps)
+    {
+    // Initialise std::function for second derivative
+    std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN
+    {
+      [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
+      {
+        nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+        aux_nn.SetParameters(parameters);
+        return aux_nn.Derive(x);
+      }
+    };
+    return FiniteDifferenceVec(dNN, parameters, input, Np + Nout, eps);
+    }
 }
