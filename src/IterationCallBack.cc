@@ -1,6 +1,6 @@
 #include "NTK/AnalyticCostFunction.h"
 #include "NTK/IterationCallBack.h"
-#include "NTK/derive.h"
+#include "NTK/NumericalDerivative.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -11,36 +11,12 @@
 
 namespace NTK
 {
-  typedef std::vector<std::vector<double>> vec_vec_data;
-
   volatile sig_atomic_t stop;
 
 //_________________________________________________________________________
 void inthand(int signum)
 {
   stop = 1;
-}
-
-
-std::vector<double> HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
-                                          std::vector<double>parameters,
-                                          std::vector<double> input,
-                                          int const& Np,
-                                          int const& Nout,
-                                          double const& eps)
-{
-  // Initialise std::function for second derivative
-  std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN
-  {
-    [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
-    {
-      nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
-      aux_nn.SetParameters(parameters);
-      return aux_nn.Derive(x);
-    }
-  };
-
-  return NTK::FiniteDifferenceVec(dNN, parameters, input, Np + Nout, eps);
 }
 
 //_________________________________________________________________________
@@ -100,6 +76,13 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
     _chi2t->SetParameters(vpar);
     const double chi2t_tot = _chi2t->Evaluate();
 
+    //________________________________________________________________________________
+    // |====================================|
+    // |             Obserables             |
+    // |====================================|
+    // Dependencies for independet environment
+    // nnad::FeedForwardNN<double> *NN
+    // Nout
     nnad::FeedForwardNN<double> *NN = _chi2t->GetNN();
     int Nout = NN->GetArchitecture().back();
     std::vector<double> parameters = NN->GetParameters();
@@ -125,7 +108,8 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
 
       // -------------------------- First derivative -------------------------
       // .data() is needed because returns a direct pointer to the memory array used internally by the vector
-      Eigen::TensorMap< Eigen::Tensor<double, 2, Eigen::ColMajor> > temp (NN->Derive(input_a).data(), Nout, Np + 1); // Col-Major
+      std::vector<double> DD = NN->Derive(input_a);
+      Eigen::TensorMap< Eigen::Tensor<double, 2, Eigen::ColMajor> > temp (DD.data(), Nout, Np + 1); // Col-Major
 
       // Get rid of the first column (the outputs) and stores only first derivatives
       Eigen::array<Eigen::Index, 2> offsets = {0, 1};
@@ -134,7 +118,7 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
 
 
       // -------------------------- Second derivative -------------------------
-      std::vector<double> results_vec = NTK::HelperSecondFiniteDer(NN, parameters, input_a, Np, Nout, eps); // Compute second derivatives
+      std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(NN, parameters, input_a, Np, Nout, eps); // Compute second derivatives
 
       // Store into ColMajor tensor
       // The order of the dimensions has been tested in "SecondDerivative", and worked out by hand.
@@ -161,7 +145,6 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
     Eigen::Tensor<double, 6> d_mu_d_nu_f_ia = d_NN.contract(d_NN, tensor_product);
     Eigen::Tensor<double, 6> O3 = dd_NN.contract(d_mu_d_nu_f_ia, first_contraction);
     std::vector<double> O3_vec ( O3.data(),  O3.data() + O3.size() );
-
     //_____________________________________________
 
     // Output parameters into yaml file
