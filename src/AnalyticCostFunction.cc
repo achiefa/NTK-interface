@@ -1,4 +1,4 @@
-#include "NTK/AnalyticCostFunction.h"
+#include "AnalyticCostFunction.h"
 
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"

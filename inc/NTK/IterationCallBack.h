@@ -5,8 +5,6 @@
 
 #pragma once
 
-#include "NTK/AnalyticCostFunction.h"
-
 // Cerse Sovler
 #include <ceres/ceres.h>
 

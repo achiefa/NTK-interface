@@ -33,8 +33,6 @@ configure_file(
     "${PROJECT_SOURCE_DIR}/inc/NTK/version.h"
 )
 
-include_directories(${PROJECT_SOURCE_DIR}/inc)
-
 find_package(PkgConfig REQUIRED)
 pkg_search_module(EIGEN3 REQUIRED eigen3)
 pkg_search_module(YAML REQUIRED yaml-cpp)

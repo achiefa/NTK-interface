@@ -1,7 +1,7 @@
-#include "NTK/AnalyticCostFunction.h"
-#include "NTK/IterationCallBack.h"
-#include "NTK/Timer.h"
-#include "NTK/direxists.h"
+#include "AnalyticCostFunction.h"
+#include "IterationCallBack.h"
+#include "Timer.h"
+#include "direxists.h"
 
 #include <getopt.h>
 #include <sys/stat.h>

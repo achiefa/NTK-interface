@@ -1,5 +1,5 @@
-#include "NTK/AnalyticCostFunction.h"
-#include "NTK/IterationCallBack.h"
+#include "AnalyticCostFunction.h"
+#include "IterationCallBack.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
