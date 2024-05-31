@@ -1,4 +1,7 @@
-cmake_minimum_required (VERSION 3.5)
+cmake_minimum_required (VERSION 3.21)
+
+#---[ CMake Config ]-----------------------
+message(STATUS "Using CMake version ${CMAKE_VERSION}")
 
 if (NOT DEFINED CMAKE_MACOSX_RPATH)
    set(CMAKE_MACOSX_RPATH 0)
