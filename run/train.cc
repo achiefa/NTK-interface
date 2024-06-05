@@ -56,9 +56,7 @@ int main(int argc, char *argv[])
   // ====================================================
   int Seed = InputCard["Seed"].as<int>() + replica;
   std::vector<int> NNarchitecture = InputCard["NNarchitecture"].as<std::vector<int>>();
-  nnad::FeedForwardNN<double> *nn = new nnad::FeedForwardNN<double> (NNarchitecture, Seed, false,
-                                        nnad::Tanh<double>,  nnad::dTanh<double>,
-                                        nnad::OutputFunction::LINEAR, nnad::InitDistribution::GAUSSIAN, {}, true);
+  nnad::FeedForwardNN<double> *nn = new nnad::FeedForwardNN<double>(NNarchitecture, Seed, nnad::OutputFunction::LINEAR);
 
   // ============================================================
   // Run the solver with some options.
@@ -89,9 +87,9 @@ int main(int argc, char *argv[])
   options.line_search_type = ceres::ARMIJO;
   options.max_num_iterations = InputCard["max_num_iterations"].as<int>();
   options.minimizer_progress_to_stdout = true;
-  options.function_tolerance  = 1e-7;
-  options.gradient_tolerance  = 1e-7;
-  options.parameter_tolerance = 1e-7;
+  options.function_tolerance  = 0.;//1e-7;
+  options.gradient_tolerance  = 0.;//1e-7;
+  options.parameter_tolerance = 0.;//1e-7;
   //options.num_threads = 4;
 
   // Iteration callback
