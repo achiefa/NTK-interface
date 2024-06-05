@@ -84,9 +84,9 @@ int main(int argc, char *argv[])
 
   // Solve
   ceres::Solver::Options options;
-  options.minimizer_type = ceres::LINE_SEARCH;
-  options.line_search_direction_type = ceres::STEEPEST_DESCENT;
-  options.line_search_type = ceres::ARMIJO;
+  //options.minimizer_type = ceres::LINE_SEARCH;
+  //options.line_search_direction_type = ceres::STEEPEST_DESCENT;
+  //options.line_search_type = ceres::ARMIJO;
   options.max_num_iterations = InputCard["max_num_iterations"].as<int>();
   options.minimizer_progress_to_stdout = true;
   options.function_tolerance  = 1e-7;
