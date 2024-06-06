@@ -1,0 +1,165 @@
+#include <cxxabi.h>
+#include <eigen3/unsupported/Eigen/CXX11/Tensor>
+#include <NNAD/FeedForwardNN.h>
+
+namespace NTK {
+typedef std::vector<double> data;
+typedef nnad::FeedForwardNN<double> NNAD;
+template <int _RANK>
+using Tensor = Eigen::Tensor<double, _RANK>;
+
+/**
+ * @brief Type demangler
+ *
+ * The type name returned by the `std::typeinfo::name()` call is the mangled
+ * type, which is the internal name that the compiler uses to identify types.
+ * The demangler convert it into a human-readable name (demangler). Note that
+ * the C string returned by `abi::__cxa_demangle` must be deallocated by
+ * the caller using `free`, as mentioned in the abi documentation:
+ * https://gcc.gnu.org/onlinedocs/libstdc++/libstdc++-html-USERS-4.3/a01696.html.
+ *
+ * here `typeid` is an operator and not function. It is directly implemented
+ * in the compiler, and for that reason it can accept a typename as an argument.
+ *
+ * @tparam D type
+ * @return std::string
+ */
+template <typename D>
+std::string type_demangler() {
+  int r;
+  std::string name;
+  char* mangled_name = abi::__cxa_demangle(typeid(D).name(), 0, 0, &r);
+  name += mangled_name;
+  std::free(mangled_name);
+  return name;
+}
+
+/**
+ * @brief IObservable
+ *
+ * This is the common interface for all types of observables. It serves
+ * as base class template meant for CRTP, and the first template argument
+ * represents the derived class. This base class can also be interpreted as
+ * a wrapper to the Eigen::Tensor class. The latter is a class template, and
+ * in particular it requires the specification of the tensor rank at compile
+ * time. Hence, `IObservable` inherits this dependency as well, and introduces
+ * another template argument which specifies the rank of the tensor representing
+ * the observable.
+ *
+ * Eigen::Tensor does not require compile-time information to set the size of
+ * each dimension of the tensor once the rank is known. For this reason, the
+ * constructor is a variadic template that allows multiple entries defining the
+ * size of each dimension. The variadic private method `_initialise_tensor`
+ * initialises the entries of the tensor to zero. The tensor is then stored
+ * into a private attribute that can be accessed through the getter `GetTensor`
+ *
+ * Despite being defined static in the base class, the actual definition depends
+ * on the template parameters. This, the derived classes don't need to define
+ * their own ids since the base class takes care of that. Moreover, being
+ * `id_base3` a static variable, one can access the type id of a class without
+ * actually instantiating an object.
+ *
+ * @tparam D : The derived class used in the CRTP
+ * @tparam _RANK : The rank of the tensor that stores the observable
+ * @todo The variadic constructor should only accept integers variables
+ * but no check is applied.
+ */
+template <typename D, int _RANK>
+class IObservable {
+ public:
+  IObservable() = default;
+  template <typename... Args>
+  IObservable(Args&&... args) {
+    _initialise_tensor(args...);
+    _d = _tensor.dimensions();
+  }
+
+  Tensor<_RANK> GetTensor() { return _tensor; }
+  std::string GetID() const { return _id; }
+
+ protected:
+  typename Tensor<_RANK>::Dimensions _d;
+  Tensor<_RANK> _tensor;
+
+ private:
+  template <typename... Args>
+  void _initialise_tensor(Args&&... args) {
+    Tensor<_RANK> temp(std::forward<Args>(args)...);
+    temp.setZero();
+    _tensor = temp;
+    return;
+  }
+  D* derived() { return static_cast<D*>(this); }
+  template <typename>
+  static std::string static_id() {
+    return type_demangler<D>();
+  }
+  static const std::string _id;
+};
+template <typename D, int _RANK>
+const std::string IObservable<D, _RANK>::_id = IObservable::static_id<D>();
+
+/**
+ * @brief Basic decorator
+ *
+ * Decorate the IObservable class. It keeps the same signature for
+ * the template arguments so that it can be used as a base class
+ * in the CRTP.
+ *
+ * @tparam D: The derived class used in the CRTP
+ * @tparam _RANK: The rank of the tensor that stores the observable
+ */
+template <typename D, int _RANK>
+class BASIC : public IObservable<D, _RANK> {
+ public:
+  void Evaluate(const data& X, int a, NNAD* nn) {
+    if (a > this->_d[0] - 1)
+      throw std::invalid_argument(
+          "The size you provided is greater than the "
+          "actual size of the tensor.");
+    this->_tensor.chip(a, 0) = static_cast<D*>(this)->algorithm_impl(X, a, nn);
+    data_map[a] = X;
+  }
+
+  void Evaluate(const std::vector<data>& Xv, NNAD* nn) {
+    for (size_t a = 0; a < Xv.size(); a++) Evaluate(Xv[a], a, nn);
+  }
+
+  bool is_computed() { return data_map.size() >= this->_d[0]; }
+
+  std::map<int, data> data_map;
+
+ protected:
+  template <typename... Args>
+  BASIC(Args&&... args) : IObservable<D, _RANK>(args...) {}
+  ~BASIC() {}
+};
+
+template <typename D, int _RANK>
+class COMBINED : public IObservable<D, _RANK> {
+ public:
+  template <typename... Obs>
+  void Evaluate(Obs*... obs) {
+    if (!check_observables(obs...)) throw std::logic_error("Something");
+    this->_tensor = contract(obs...);
+  }
+
+ protected:
+  template <typename... Args>
+  COMBINED(Args&&... args) : IObservable<D, _RANK>(args...) {}
+  ~COMBINED() {}
+
+ private:
+  template <typename... Obs>
+  Tensor<_RANK> contract(Obs*... obs) {
+    return static_cast<D*>(this)->contract_impl(obs...);
+  };
+
+  template <typename... Obs>
+  bool check_observables(Obs*... obs) {
+    for (const auto& o : {obs...})
+      if (!o->is_computed()) return false;
+    return true;
+  }
+};
+}  // namespace NTK

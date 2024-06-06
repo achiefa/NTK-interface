@@ -2,6 +2,7 @@ set(src_files
     AnalyticCostFunction.cc
     IterationCallBack.cc
     NumericalDerivative.cc
+    Observable.cpp
     )
 
 add_library (src OBJECT ${src_files})
