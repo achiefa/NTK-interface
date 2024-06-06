@@ -75,7 +75,8 @@ class IObservable {
   }
 
   Tensor<_RANK> GetTensor() { return _tensor; }
-  std::string GetID() const { return _id; }
+  std::string GetID() const { return id; }
+  static const std::string id;
 
  protected:
   typename Tensor<_RANK>::Dimensions _d;
@@ -94,10 +95,9 @@ class IObservable {
   static std::string static_id() {
     return type_demangler<D>();
   }
-  static const std::string _id;
 };
 template <typename D, int _RANK>
-const std::string IObservable<D, _RANK>::_id = IObservable::static_id<D>();
+const std::string IObservable<D, _RANK>::id = IObservable::static_id<D>();
 
 /**
  * @brief Basic decorator
@@ -161,5 +161,14 @@ class COMBINED : public IObservable<D, _RANK> {
       if (!o->is_computed()) return false;
     return true;
   }
+};
+
+
+class dNN : public BASIC<dNN, 3> {
+  public:
+  dNN(int size1, int size2, int size3);
+
+  private:
+  Tensor<2> algorithm_impl(const data &X, int a, NNAD* nn);
 };
 }  // namespace NTK
