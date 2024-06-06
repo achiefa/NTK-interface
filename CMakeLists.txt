@@ -5,6 +5,12 @@ if (NOT DEFINED CMAKE_MACOSX_RPATH)
 endif()
 
 project(NTK)
+option(NTK_ENABLE_TESTING "Build tests" OFF)
+if (CMAKE_BUILD_TYPE STREQUAL Debug)
+  set(NTK_ENABLE_TESTING ON)
+endif()
+
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
 
 # CXX standard for the project
 set(NTK 1.0.0)
@@ -54,22 +60,12 @@ endif(NNAD_CONFIG)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNAD_CFLAGS} ${EIGEN3_CFLAGS} ${Ceres_CFLAGS} ${YAML_CFLAGS} ")
 
+
+if(NTK_ENABLE_TESTING)
+  include(CTest)
+  add_subdirectory(test)
+endif()
+
 # build target library
-add_subdirectory(src)
+add_subdirectory(src bin)
 add_subdirectory(run)
-add_subdirectory(test)
-
-# Installing and Testing
-# ______________________________________________________________________________________
-# Configuration script
-##set(prefix ${CMAKE_INSTALL_PREFIX})
-##set(exec_prefix "${prefix}")
-##set(includedir "${prefix}/include")
-##set(libdir "${prefix}/lib")
-##install (TARGETS train DESTINATION bin)
-
-# Testing sessione
-#_____________________________________________________
-#enable_testing()
-#set (TEST_RUNCARD "${PROJECT_SOURCE_DIR}/tests/test_runcard.yaml")
-#add_test(NAME Test COMMAND train TEST_RUNCARD)
