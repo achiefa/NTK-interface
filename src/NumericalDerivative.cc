@@ -4,7 +4,7 @@ namespace NTK
 {
   //__________________________________________________________________________________________
   std::vector<std::vector<double>> FiniteDifference (
-  std::function<std::vector<double> (std::vector<double> const&, std::vector<double>)> f,
+  std::function< std::vector<double> (std::vector<double> const&, std::vector<double>)> f,
   std::vector<double> parameters, 
   std::vector<double> const& x, 
   double const& eps)
@@ -70,14 +70,11 @@ namespace NTK
 
   //__________________________________________________________________________________________
   std::vector<double> helper::HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
-                                          std::vector<double>parameters,
                                           std::vector<double> input,
-                                          int const& Np,
-                                          int const& Nout,
                                           double const& eps)
     {
     // Initialise std::function for second derivative
-    std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN
+    std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN_func
     {
       [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
       {
@@ -86,6 +83,8 @@ namespace NTK
         return aux_nn.Derive(x);
       }
     };
-    return FiniteDifferenceVec(dNN, parameters, input, Np + Nout, eps);
+    int np = NN->GetParameterNumber();
+    int nout = NN->GetArchitecture().back();
+    return FiniteDifferenceVec(dNN_func, NN->GetParameters(), input, np * nout + nout, eps);
     }
 }

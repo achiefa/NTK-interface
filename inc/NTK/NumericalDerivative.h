@@ -97,10 +97,7 @@ namespace NTK
      * @brief Helper function to compute second derivative of the NN
     */
     std::vector<double> HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
-                                          std::vector<double>parameters,
                                           std::vector<double> input,
-                                          int const& Np,
-                                          int const& Nout,
                                           double const& eps);
   }
 }
