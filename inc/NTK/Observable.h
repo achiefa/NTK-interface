@@ -72,7 +72,6 @@ class IObservable {
     _initialise_tensor(args...);
     _d = _tensor.dimensions();
   }
-  ~IObservable() { std::cout << "BASE - SONO CHIAMATO" << std::endl; }
 
   Tensor<_RANK> GetTensor() { return _tensor; }
   std::string GetID() const { return id; }
