@@ -67,12 +67,12 @@ std::string type_demangler() {
 template <typename D, int _RANK>
 class IObservable {
  public:
-  IObservable() = default;
   template <typename... Args>
   IObservable(Args&&... args) {
     _initialise_tensor(args...);
     _d = _tensor.dimensions();
   }
+  ~IObservable() { std::cout << "BASE - SONO CHIAMATO" << std::endl; }
 
   Tensor<_RANK> GetTensor() { return _tensor; }
   std::string GetID() const { return id; }
@@ -114,25 +114,27 @@ class BASIC : public IObservable<D, _RANK> {
  public:
   void Evaluate(const data& X, int a, NNAD* nn) {
     if (a > this->_d[0] - 1)
-      throw std::invalid_argument(
-          "The size you provided is greater than the "
-          "actual size of the tensor.");
+      throw std::invalid_argument("The size you provided is greater than the actual size of the tensor.");
     this->_tensor.chip(a, 0) = static_cast<D*>(this)->algorithm_impl(X, a, nn);
     data_map[a] = X;
   }
 
   void Evaluate(const std::vector<data>& Xv, NNAD* nn) {
-    for (size_t a = 0; a < Xv.size(); a++) Evaluate(Xv[a], a, nn);
+    this->_tensor.setZero();
+    for (size_t a = 0; a < Xv.size(); a++) {
+      Evaluate(Xv[a], a, nn);
+    }
   }
 
   bool is_computed() { return data_map.size() >= this->_d[0]; }
 
-  std::map<int, data> data_map;
+  std::map<int, data> GetDataMap() { return data_map; }
 
  protected:
   template <typename... Args>
   BASIC(Args&&... args) : IObservable<D, _RANK>(args...) {}
   ~BASIC() {}
+  std::map<int, data> data_map;
 };
 
 template <typename D, int _RANK>
@@ -166,9 +168,38 @@ class COMBINED : public IObservable<D, _RANK> {
 
 class dNN : public BASIC<dNN, 3> {
   public:
-  dNN(int size1, int size2, int size3);
+  dNN(int , int , int );
 
   private:
-  Tensor<2> algorithm_impl(const data &X, int a, NNAD* nn);
+  Tensor<2> algorithm_impl(const data&, int , NNAD*);
+  friend BASIC<dNN,3>;
 };
+
+class ddNN : public BASIC<ddNN, 4> {
+public:
+  ddNN(int, int, int);
+
+private:
+  Tensor<3> algorithm_impl(const data&, int, NNAD*);
+  friend BASIC<ddNN,4>;
+};
+
+class O2 : public COMBINED<O2, 4> {
+public:
+  O2(int, int);
+
+private:
+  Tensor<4> contract_impl(dNN*);
+  friend COMBINED<O2, 4>;
+};
+
+class O3 : public COMBINED<O3, 6> {
+public:
+  O3(int, int);
+
+private:
+  Tensor<6> contract_impl(dNN*, ddNN*);
+  friend COMBINED<O3, 6>;
+};
+
 }  // namespace NTK

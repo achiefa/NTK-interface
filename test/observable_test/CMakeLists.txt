@@ -1,0 +1,8 @@
+add_executable(unit_obs_test observable_test.cpp)
+target_link_libraries(unit_obs_test PRIVATE NTK Catch2::Catch2WithMain)
+catch_discover_tests(unit_obs_test)
+AddCoverage(unit_obs_test)
+
+
+add_executable(porca_troia porca_troia.cpp)
+target_link_libraries(porca_troia PRIVATE NTK)

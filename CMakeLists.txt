@@ -6,6 +6,7 @@ endif()
 
 project(NTK)
 option(NTK_ENABLE_TESTING "Build tests" OFF)
+
 if (CMAKE_BUILD_TYPE STREQUAL Debug)
   set(NTK_ENABLE_TESTING ON)
 endif()
@@ -58,14 +59,13 @@ if (NNAD_CONFIG)
     set(NNAD_CFLAGS ${NNAD_CFLAGS} CACHE STRING INTERNAL)
 endif(NNAD_CONFIG)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNAD_CFLAGS} ${EIGEN3_CFLAGS} ${Ceres_CFLAGS} ${YAML_CFLAGS} ")
-
-
-if(NTK_ENABLE_TESTING)
-  include(CTest)
-  add_subdirectory(test)
-endif()
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NNAD_CFLAGS} ${EIGEN3_CFLAGS} ${Ceres_CFLAGS} ${YAML_CFLAGS}")
 
 # build target library
 add_subdirectory(src bin)
 add_subdirectory(run)
+
+if(NTK_ENABLE_TESTING)
+  enable_testing()
+  add_subdirectory(test)
+endif()
