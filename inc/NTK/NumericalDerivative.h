@@ -91,12 +91,23 @@ namespace NTK
     int const& size_f,
     double const& eps);
 
+  std::vector<double> FiniteSecondDifferenceVec (
+    std::function<std::vector<double> (std::vector<double> const&, std::vector<double>)> f,
+    std::vector<double> parameters,
+    std::vector<double> const& x,
+    int const& size_f,
+    double const& eps);
+
   namespace helper
   {
     /**
      * @brief Helper function to compute second derivative of the NN
     */
     std::vector<double> HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps);
+
+    std::vector<double> HelperThirdFiniteDer (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);
   }
