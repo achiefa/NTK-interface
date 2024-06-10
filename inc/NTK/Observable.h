@@ -1,6 +1,7 @@
 #include <cxxabi.h>
 #include <eigen3/unsupported/Eigen/CXX11/Tensor>
 #include <NNAD/FeedForwardNN.h>
+#pragma once
 
 namespace NTK {
 typedef std::vector<double> data;
@@ -125,7 +126,7 @@ class BASIC : public IObservable<D, _RANK> {
     }
   }
 
-  bool is_computed() { return data_map.size() >= this->_d[0]; }
+  bool is_computed() { return data_map.size() == this->_d[0]; }
 
   std::map<int, data> GetDataMap() { return data_map; }
 
@@ -136,13 +137,32 @@ class BASIC : public IObservable<D, _RANK> {
   std::map<int, data> data_map;
 };
 
+/**
+ * @brief Combined decorator
+ * 
+ * @tparam D 
+ * @tparam _RANK 
+ * @todo The `check_observables` function only checks that the single basic
+ * observables have been computed for the entire data batch. However, this
+ * does not check that the data batch is the same, and hence must be
+ * implemented (and tested as well).
+ * @todo I should implement a check in the in template arguments for the
+ * `Evaluate` function.
+ */
 template <typename D, int _RANK>
 class COMBINED : public IObservable<D, _RANK> {
  public:
   template <typename... Obs>
   void Evaluate(Obs*... obs) {
-    if (!check_observables(obs...)) throw std::logic_error("Something");
-    this->_tensor = contract(obs...);
+    if (!check_observables(obs...))
+      throw std::logic_error("Something");
+    this->_tensor = static_cast<D*>(this)->contract_impl(obs...);
+  }
+
+  template <typename... Obs>
+  Tensor<_RANK> contract_impl(Obs*... obs) {
+    Tensor<_RANK> t;
+    return t;
   }
 
  protected:
@@ -153,14 +173,18 @@ class COMBINED : public IObservable<D, _RANK> {
  private:
   template <typename... Obs>
   Tensor<_RANK> contract(Obs*... obs) {
-    return static_cast<D*>(this)->contract_impl(obs...);
+    return static_cast<D*>(this)->contract_impl(obs ...);
   };
 
   template <typename... Obs>
   bool check_observables(Obs*... obs) {
-    for (const auto& o : {obs...})
-      if (!o->is_computed()) return false;
-    return true;
+    // Using a fold expression
+    bool check = true;
+    ([&] {
+      if (!obs->is_computed())
+        check = false;
+    } () , ...);
+    return check;
   }
 };
 
