@@ -79,8 +79,8 @@ class IObservable {
   static const std::string id;
 
  protected:
-  typename Tensor<_RANK>::Dimensions _d;
-  Tensor<_RANK> _tensor;
+  typename Tensor<_RANK>::Dimensions  _d;
+  Tensor<_RANK>                       _tensor;
 
  private:
   template <typename... Args>
@@ -119,10 +119,47 @@ class BASIC : public IObservable<D, _RANK> {
     data_map[a] = X;
   }
 
+
+  /**
+   * @brief Evaluate specifying data and nn
+   * 
+   * @param Xv 
+   * @param nn 
+   */
   void Evaluate(const std::vector<data>& Xv, NNAD* nn) {
     this->_tensor.setZero();
     for (size_t a = 0; a < Xv.size(); a++) {
       Evaluate(Xv[a], a, nn);
+    }
+  }
+
+  /**
+   * @brief Evaluate using stored data and nn
+   */
+  void Evaluate() {
+    if (_nn == nullptr || !(_data_loaded))
+      throw std::invalid_argument("Either the network or the data have not been set.");
+    this->_tensor.setZero();
+    for (size_t a = 0; a < data_map.size(); a++) {
+      Evaluate(data_map[a], a, _nn);
+    }
+  }
+
+  void Evaluate(NNAD* nn) {
+    if (!(_data_loaded))
+      throw std::invalid_argument("Data has not been set.");
+    this->_tensor.setZero();
+    for (size_t a = 0; a < data_map.size(); a++) {
+      Evaluate(data_map[a], a, nn);
+    }
+  }
+
+  void Evaluate(std::vector<data>& Xv) {
+    if (_nn == nullptr)
+      throw std::invalid_argument("Network has not been set.");
+    this->_tensor.setZero();
+    for (size_t a = 0; a < Xv.size(); a++) {
+      Evaluate(Xv[a], a, _nn);
     }
   }
 
@@ -131,10 +168,19 @@ class BASIC : public IObservable<D, _RANK> {
   std::map<int, data> GetDataMap() { return data_map; }
 
  protected:
-  template <typename... Args>
-  BASIC(Args&&... args) : IObservable<D, _RANK>(args...) {}
+  template <typename... Args> BASIC(Args&&... args) : IObservable<D, _RANK>(args...), _nn() {}
+  template <typename... Args> BASIC(NNAD* nn, Args&&... args) : IObservable<D, _RANK>(args...),  _nn(nn) {}
+  template <typename... Args> BASIC(std::vector<data> data_batch, NNAD* nn, Args&&... args) : IObservable<D, _RANK>(args...), _nn(nn) {
+    // Fill data map
+    for(size_t i=0; i < data_batch.size(); i++)
+      data_map[i] = data_batch[i];
+    _data_loaded = true;
+  }
+
   ~BASIC() {}
   std::map<int, data> data_map;
+  NNAD*               _nn;
+  bool                _data_loaded = false;
 };
 
 /**
@@ -191,7 +237,37 @@ class COMBINED : public IObservable<D, _RANK> {
 
 class dNN : public BASIC<dNN, 3> {
   public:
-  dNN(int , int , int );
+  /**
+   * @brief Construct a new d N N object
+   * 
+   * @param batch_size 
+   * @param nout 
+   * @param np 
+   */
+  dNN(int batch_size, int nout, int np);
+
+  /**
+   * @brief Construct a new d NN object
+   * 
+   * Requires network and batch_size. The Observable is automatically
+   * coupled to the network is is initialised with. The other dimensions
+   * (such as the number of output nodes and parameters) are deduced from
+   * the network.
+   * 
+   * @param nn 
+   * @param batch_size
+   */
+  dNN(NNAD* nn, int batch_size);
+
+  /**
+   * @brief Construct a new dNN object
+   * 
+   * Requires the network and the data_batch. All the other parameters are
+   * deduced.
+   * @param nn 
+   * @param data_batch 
+   */
+  dNN(NNAD* nn, std::vector<data> data_batch);
 
   private:
   Tensor<2> algorithm_impl(const data&, int , NNAD*);
@@ -200,7 +276,37 @@ class dNN : public BASIC<dNN, 3> {
 
 class ddNN : public BASIC<ddNN, 4> {
 public:
-  ddNN(int, int, int);
+  /**
+   * @brief Construct a new ddNN object
+   * 
+   * @param batch_size 
+   * @param nout 
+   * @param np 
+   */
+  ddNN(int batch_size, int nout, int np);
+
+  /**
+   * @brief Construct a new ddNN object
+   * 
+   * Requires network and batch_size. The Observable is automatically
+   * coupled to the network is is initialised with. The other dimensions
+   * (such as the number of output nodes and parameters) are deduced from
+   * the network.
+   * 
+   * @param nn 
+   * @param batch_size
+   */
+  ddNN(NNAD* nn, int batch_size);
+
+  /**
+   * @brief Construct a new ddNN object
+   * 
+   * Requires the network and the data_batch. All the other parameters are
+   * deduced.
+   * @param nn 
+   * @param data_batch 
+   */
+  ddNN(NNAD* nn, std::vector<data> data_batch);
 
 private:
   Tensor<3> algorithm_impl(const data&, int, NNAD*);

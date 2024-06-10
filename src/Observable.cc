@@ -6,7 +6,9 @@ namespace NTK{
 
   //                        First derivative
   //________________________________________________________________________________
-  dNN::dNN(int data_batch, int nout, int np) : BASIC<dNN, 3>(data_batch, nout, np) {}
+  dNN::dNN(int batch_size, int nout, int np) : BASIC<dNN, 3>(batch_size, nout, np) {}
+  dNN::dNN(NNAD* nn, int batch_size) : BASIC<dNN, 3>(nn, batch_size, nn->GetArchitecture().back(), nn->GetParameterNumber()) {}
+  dNN::dNN(NNAD* nn, std::vector<data> data_batch) : BASIC<dNN, 3>(data_batch, nn, data_batch.size(), nn->GetArchitecture().back(), nn->GetParameterNumber()) {}
   Tensor<2> dNN::algorithm_impl(const data &X, int a, NNAD* nn) {
     std::vector<double> derivative = nn->Derive(X);
     Eigen::TensorMap<Eigen::Tensor<double, 2, Eigen::ColMajor>> temp(derivative.data(), _d[1], _d[2] + 1); // Col-Major
@@ -17,9 +19,13 @@ namespace NTK{
     return temp.slice(offsets, extents);
   }
 
+  
+
   //                        Second derivative
   //________________________________________________________________________________________
-  ddNN::ddNN(int data_batch, int nout, int np) : BASIC<ddNN, 4>(data_batch, nout, np, np) {}
+  ddNN::ddNN(int batch_size, int nout, int np) : BASIC<ddNN, 4>(batch_size, nout, np, np) {}
+  ddNN::ddNN(NNAD* nn, int batch_size) : BASIC<ddNN, 4>(nn, batch_size, nn->GetArchitecture().back(), nn->GetParameterNumber(), nn->GetParameterNumber()) {}
+  ddNN::ddNN(NNAD* nn, std::vector<data> data_batch) : BASIC<ddNN, 4>(data_batch, nn, data_batch.size(), nn->GetArchitecture().back(), nn->GetParameterNumber(), nn->GetParameterNumber()) {}
   Tensor<3> ddNN::algorithm_impl(const data &X, int a, NNAD *nn) {
     std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(nn, X, eps); // Compute second derivatives
 
@@ -39,7 +45,7 @@ namespace NTK{
 
   //                                      NTK
   //________________________________________________________________________________________
-  O2::O2(int data_batch, int nout) : COMBINED<O2, 4>(data_batch, data_batch, nout, nout) {}
+  O2::O2(int batch_size, int nout) : COMBINED<O2, 4>(batch_size, batch_size, nout, nout) {}
   Tensor<4> O2::contract_impl(dNN *dnn) {
     Eigen::array<Eigen::IndexPair<int>, 1> double_contraction = {Eigen::IndexPair<int>(2, 2)};
     auto dnn_tensor = dnn->GetTensor();
@@ -49,7 +55,7 @@ namespace NTK{
 
   //                                      O3
   //________________________________________________________________________________________
-  O3::O3(int data_batch, int nout) : COMBINED<O3, 6>(data_batch, data_batch, data_batch, nout, nout, nout) {}
+  O3::O3(int batch_size, int nout) : COMBINED<O3, 6>(batch_size, batch_size, batch_size, nout, nout, nout) {}
   Tensor<6> O3::contract_impl(dNN *dnn, ddNN *ddnn) {
     auto dnn_tensor = dnn->GetTensor();
     auto ddnn_tensor = ddnn->GetTensor();
