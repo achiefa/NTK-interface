@@ -118,7 +118,7 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
 
 
       // -------------------------- Second derivative -------------------------
-      std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(NN, parameters, input_a, Np, Nout, eps); // Compute second derivatives
+      std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(NN, input_a, eps); // Compute second derivatives
 
       // Store into ColMajor tensor
       // The order of the dimensions has been tested in "SecondDerivative", and worked out by hand.

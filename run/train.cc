@@ -132,8 +132,6 @@ int main(int argc, char *argv[])
     Eigen::Tensor<double, 4> dd_NN (Size, Nout, np, np);
     d_NN.setZero();
     dd_NN.setZero();
-    std::cout << np << std::endl;
-    std::cout << Nout << std::endl;
 
     for (int a = 0; a < Size; a++){
       std::vector<double> input_a = std::get<0>(Data[(a) * StepSize]);
@@ -150,7 +148,7 @@ int main(int argc, char *argv[])
 
 
       // -------------------------- Second derivative -------------------------
-      std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(nn, parameters, input_a, np, Nout, eps); // Compute second derivatives
+      std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(nn, input_a, eps); // Compute second derivatives
 
       // Store into ColMajor tensor
       // The order of the dimensions has been tested in "SecondDerivative", and worked out by hand.
