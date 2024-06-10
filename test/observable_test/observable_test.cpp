@@ -3,69 +3,12 @@
 #include <catch2/catch_template_test_macros.hpp>
 
 #include "NTK/Observable.h"
-#include "NTK/NumericalDerivative.h"
 #include "NNAD/FeedForwardNN.h"
+#include "NTK/utility_test.hpp"
 
-NTK::Tensor<3> utility_return_dNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  Eigen::Tensor<double, 3> d_NN (batch_size, nout, np);
-  d_NN.setZero();
-
-  for (int a = 0; a < batch_size; a++){
-    std::vector<double> input_a = vec_data[a];
-    // -------------------------- First derivative -------------------------
-    // .data() is needed because returns a direct pointer to the memory array used internally by the vector
-    std::vector<double> DD = nn->Derive(input_a);
-    Eigen::TensorMap< Eigen::Tensor<double, 2, Eigen::ColMajor> > temp (DD.data(), nout, np + 1); // Col-Major
-
-    // Get rid of the first column (the outputs) and stores only first derivatives
-    Eigen::array<Eigen::Index, 2> offsets = {0, 1};
-    Eigen::array<Eigen::Index, 2> extents = {nout, np};
-    d_NN.chip(a,0) = temp.slice(offsets, extents);
-  }
-  return d_NN;
-}
-
-double sum_utility_return_dNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  auto tensor = utility_return_dNN(batch_size, nout, np, nn, vec_data);
-  Eigen::Tensor<double, 0> target = tensor.sum();
-  return target(0);
-}
-
-const double eps = 1.e-5;
-
-NTK::Tensor<4> utility_return_ddNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  NTK::Tensor<4> dd_NN (batch_size, nout, np, np);
-  dd_NN.setZero();
-
-  for (int a = 0; a < batch_size; a++){
-    std::vector<double> input_a = vec_data[a];
-    std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(nn, input_a, eps); // Compute second derivatives
-
-    // Store into ColMajor tensor
-    // The order of the dimensions has been tested in "SecondDerivative", and worked out by hand.
-    Eigen::TensorMap< Eigen::Tensor<double, 3, Eigen::ColMajor> > ddNN (results_vec.data(), nout, np + 1, np);
-
-    // Swap to ColMajor for compatibility and reshape
-    Eigen::array<int, 3> new_shape{{0, 2, 1}};
-    Eigen::Tensor<double, 3> ddNN_reshape = ddNN.shuffle(new_shape);
-
-    // Get rid of the first column (the firs derivatives) and stores only second derivatives
-    Eigen::array<Eigen::Index, 3> offsets_3 = {0, 0, 1};
-    Eigen::array<Eigen::Index, 3> extents_3 = {nout, np, np};
-    dd_NN.chip(a,0) = ddNN_reshape.slice(offsets_3, extents_3);
-  }
-  return dd_NN;
-}
-
-double sum_utility_return_ddNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  auto tensor = utility_return_ddNN(batch_size, nout, np, nn, vec_data);
-  Eigen::Tensor<double, 0> target = tensor.sum();
-  return target(0);
-}
-
-//                            TestType
-//______________________________________________________________________
-TEMPLATE_TEST_CASE( " Testing Observable", "[Observable][template] ", NTK::dNN, NTK::ddNN ) {
+//                            Basic Observable
+//_______________________________________________________________________________________
+TEMPLATE_TEST_CASE( " Testing basic observable", "[Observable][Basic][template] ", NTK::dNN, NTK::ddNN ) {
   INFO("Initialising neural network and data");
   const std::vector<int> arch{3, 5, 2};
   std::unique_ptr<NTK::NNAD> nn = std::make_unique<NTK::NNAD>(arch, 0, nnad::OutputFunction::QUADRATIC, false);
@@ -79,10 +22,9 @@ TEMPLATE_TEST_CASE( " Testing Observable", "[Observable][template] ", NTK::dNN, 
   data_vector[3] = {0.1, 0.9, 0.5};
 
   SECTION( "Testing constructor" ) {
-    std::unique_ptr<TestType> dnn = std::make_unique<TestType> (batch_size, nout, np);
-    auto tensor = dnn->GetTensor();
+    TestType dnn (batch_size, nout, np);
+    auto tensor = dnn.GetTensor();
     Eigen::Tensor<double, 0> result = tensor.sum();
-    REQUIRE_FALSE(dnn == NULL);
     REQUIRE_THAT(result(0), Catch::Matchers::WithinRel(0.));
   }
 
@@ -117,18 +59,27 @@ TEMPLATE_TEST_CASE( " Testing Observable", "[Observable][template] ", NTK::dNN, 
       REQUIRE(dnn->is_computed());
     }
 
-    SECTION( "Testin against truth iterative" ) {
+    SECTION( "Testing against truth" ) {
       double truth;
       if (TestType::id == "NTK::dNN")
         truth = sum_utility_return_dNN(batch_size, nout, np, nn.get(), data_vector);
       else if (TestType::id == "NTK::ddNN")
         truth = sum_utility_return_ddNN(batch_size, nout, np, nn.get(), data_vector);
 
-      for (int a = 0; a < data_vector.size(); a++) {
-        dnn->Evaluate(data_vector[a], a, nn.get());
+      SECTION( " Iterative " )   {
+        for (int a = 0; a < data_vector.size(); a++) {
+          dnn->Evaluate(data_vector[a], a, nn.get());
+        }
+        Eigen::Tensor<double, 0> guess = dnn->GetTensor().sum();
+        REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(truth));
       }
-      Eigen::Tensor<double, 0> guess = dnn->GetTensor().sum();
-      REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(truth));
+
+      SECTION( " Vector " )   {
+        dnn->Evaluate(data_vector, nn.get());
+        Eigen::Tensor<double, 0> guess = dnn->GetTensor().sum();
+        REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(truth));
+      }
+
     } 
 
     SUCCEED( " Evaluation test succeeded" );
@@ -138,5 +89,131 @@ TEMPLATE_TEST_CASE( " Testing Observable", "[Observable][template] ", NTK::dNN, 
 
 
 
+//                            Combined Observable
+//_______________________________________________________________________________________
+TEST_CASE( " Testing combined observable", "[Observable][Combined][template] ") {
+  const std::vector<int> arch{3, 5, 2};
+  std::unique_ptr<NTK::NNAD> nn = std::make_unique<NTK::NNAD>(arch, 0, nnad::OutputFunction::QUADRATIC, false);
+  int nout = arch.back();
+  int np = nn->GetParameterNumber();
+  int batch_size = 4;
+  std::vector<NTK::data> data_vector (batch_size);
+  data_vector[0] = {0.0, 0.3, 0.6};
+  data_vector[1] = {0.0, 0.7, 0.9};
+  data_vector[2] = {0.8, 0.1, 0.3};
+  data_vector[3] = {0.1, 0.9, 0.5};
+
+  SECTION( "Testing constructors" ) {
+
+    SECTION( " Testing constructors O2 ") {
+      NTK::O2 ntk (batch_size, nout);
+      auto tensor = ntk.GetTensor();
+      Eigen::Tensor<double, 0> result = tensor.sum();
+      REQUIRE_THAT(result(0), Catch::Matchers::WithinRel(0.));
+    }
+
+    SECTION( " Testing constructors O3 ") {
+      NTK::O3 O (batch_size, nout);
+      auto tensor = O.GetTensor();
+      Eigen::Tensor<double, 0> result = tensor.sum();
+      REQUIRE_THAT(result(0), Catch::Matchers::WithinRel(0.));
+    }
+  }
+
+  SECTION( " Testing contraction and `check_observables` " ) {
+
+    SECTION(" Test for O2") {
+      NTK::O2 O (batch_size, nout);
+      NTK::dNN dnn(batch_size, nout, np);
+      REQUIRE_THROWS(O.Evaluate(&dnn));
+      dnn.Evaluate(data_vector, nn.get());
+      REQUIRE_NOTHROW(O.Evaluate(&dnn));
+    }
+
+    SECTION( " Test for O3 ") {
+      NTK::O3 O (batch_size, nout);
+      NTK::dNN dnn (batch_size, nout, np);
+      NTK::ddNN ddnn (batch_size, nout, np);
+      REQUIRE_THROWS(O.Evaluate(&dnn, &ddnn));
+      dnn.Evaluate(data_vector, nn.get());
+      ddnn.Evaluate(data_vector, nn.get());
+      REQUIRE_NOTHROW(O.Evaluate(&dnn, &ddnn));
+    }
+  }
+
+  SECTION( " Testing against old implementation ") {
+
+    SECTION( " Test for O2 ") {
+      NTK::O2 ntk (batch_size, nout);
+      NTK::dNN dnn(batch_size, nout, np);
+      dnn.Evaluate(data_vector, nn.get());
+      ntk.Evaluate(&dnn);
+      auto dnn_tensor = dnn.GetTensor();
+      auto ntk_tensor = ntk.GetTensor();
+
+      // Contraction old way
+      Eigen::array<Eigen::IndexPair<int>, 1> double_contraction = { Eigen::IndexPair<int>(2,2) };
+      NTK::Tensor<4> truth_tensor = dnn_tensor.contract(dnn_tensor, double_contraction);
+
+      Eigen::Tensor<double, 0> guess = ntk_tensor.sum();
+      Eigen::Tensor<double, 0> target = truth_tensor.sum();
+      REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(target(0)));
+    }
+
+    SECTION( " Test for O3 ") {
+      NTK::O3 ntk_3 (batch_size, nout);
+      NTK::dNN dnn(batch_size, nout, np);
+      NTK::ddNN ddnn(batch_size, nout, np);
+      dnn.Evaluate(data_vector, nn.get());
+      ddnn.Evaluate(data_vector, nn.get());
+      ntk_3.Evaluate(&dnn, &ddnn);
+      auto dnn_tensor = dnn.GetTensor();
+      auto ddnn_tensor = ddnn.GetTensor();
+      auto ntk_3_tensor = ntk_3.GetTensor();
+
+      // Contraction old way
+      Eigen::array<Eigen::IndexPair<int>, 0> tensor_product = {  };
+      Eigen::array<Eigen::IndexPair<int>, 2> first_contraction = { Eigen::IndexPair<int>(2,2), Eigen::IndexPair<int>(3,5) };
+      Eigen::Tensor<double, 6> d_mu_d_nu_f_ia = dnn_tensor.contract(dnn_tensor, tensor_product);
+      Eigen::Tensor<double, 6> truth_tensor = ddnn_tensor.contract(d_mu_d_nu_f_ia, first_contraction);
+
+      Eigen::Tensor<double, 0> guess = ntk_3_tensor.sum();
+      Eigen::Tensor<double, 0> target = truth_tensor.sum();
+      REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(target(0)));
+    }
+  }
+  SUCCEED( " Observable test succeeded" );
+}
 
 
+
+TEST_CASE(" Test pointer to NNAD ") {
+  const std::vector<int> arch{3, 5, 2};
+  std::unique_ptr<NTK::NNAD> nn = std::make_unique<NTK::NNAD>(arch, 0, nnad::OutputFunction::QUADRATIC, false);
+  int nout = arch.back();
+  int np = nn->GetParameterNumber();
+  int batch_size = 4;
+  std::vector<NTK::data> data_vector (batch_size);
+  data_vector[0] = {0.0, 0.3, 0.6};
+  data_vector[1] = {0.0, 0.7, 0.9};
+  data_vector[2] = {0.8, 0.1, 0.3};
+  data_vector[3] = {0.1, 0.9, 0.5};
+
+  NTK::dNN dnn (batch_size, nout, np);
+  dnn.Evaluate(data_vector, nn.get());
+  auto old_tensor = dnn.GetTensor();
+
+  // Shift parameters
+  double eps = 1.e-5;
+  std::vector<double> new_parameters = nn->GetParameters();
+  for (int ip = 0; ip < np; ip++)
+    new_parameters[ip] = new_parameters[ip] * ( 1 + eps );
+
+  nn->SetParameters(new_parameters);
+  dnn.Evaluate(data_vector, nn.get());
+  auto new_tensor = dnn.GetTensor();
+  auto difference = new_tensor - old_tensor;
+  Eigen::Tensor<double, 0> reduced_difference = difference.sum();
+  REQUIRE_THAT(reduced_difference(0), !Catch::Matchers::WithinRel(0.));
+  }
+  
