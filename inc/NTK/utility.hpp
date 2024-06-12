@@ -1,5 +1,6 @@
 #include "NTK/AnalyticCostFunction.h"
 #include "NTK/Observable.h"
+#include <utility>
 
 namespace NTK
 {
@@ -13,20 +14,29 @@ namespace NTK
   }
 
 
-  void print_to_yaml(std::string FitFolder, O2* ntk, O3* o3) {
+  template<typename ... Args>
+  void print_obs_to_yaml(const std::string &FitFolder, const int &iteration, Args&& ... args) {
     // Output parameters into yaml file
 
-    auto ntk_tensor = ntk->GetTensor();
-    auto O3_tensor = ntk->GetTensor();
-    std::vector<double> NTK_vec ( ntk_tensor.data(),  ntk_tensor.data() + ntk_tensor.size() );
-    std::vector<double> O3_vec ( O3_tensor.data(),  O3_tensor.data() + O3_tensor.size() );
+    std::vector< std::pair< std::string, std::vector<double>> > name_tensor_pairs;
+    ([&]
+    {
+        auto tensor = args->GetTensor();
+        std::vector<double> tensor_vec ( tensor.data(),  tensor.data() + tensor.size() );
+        std::pair<std::string, std::vector<double>> tensor_pair;
+        tensor_pair.first = args->GetID();
+        std::cout << tensor_pair.first << std::endl;
+        tensor_pair.second = tensor_vec;
+        name_tensor_pairs.push_back(tensor_pair);
+    } (), ...);
 
     YAML::Emitter emitter;
     emitter << YAML::BeginSeq;
     emitter << YAML::Flow << YAML::BeginMap;
-    emitter << YAML::Key << "iteration" << YAML::Value << int(0);
-    emitter << YAML::Key << "NTK" << YAML::Value << YAML::Flow << NTK_vec;
-    emitter << YAML::Key << "O_3" << YAML::Value << YAML::Flow << O3_vec;
+    emitter << YAML::Key << "iteration" << YAML::Value << int(iteration);
+    for (auto& pr : name_tensor_pairs) {
+      emitter << YAML::Key << pr.first << YAML::Value << YAML::Flow << pr.second;
+    }
     emitter << YAML::EndMap;
     emitter << YAML::EndSeq;
     emitter << YAML::Newline;

@@ -117,13 +117,17 @@ int main(int argc, char *argv[])
   std::vector<NTK::data> data_batch = NTK::create_data_batch(batch_size, Data);
   NTK::dNN dnn(nn, data_batch);
   NTK::ddNN ddnn(nn, data_batch);
+  NTK::d3NN d3nn(nn, data_batch);
   NTK::O2 o2(NNarchitecture.back(), np);
   NTK::O3 o3(NNarchitecture.back(), np);
+  NTK::O4 o4(NNarchitecture.back(), np);
   dnn.Evaluate();
   ddnn.Evaluate();
+  d3nn.Evaluate();
   o2.Evaluate(&dnn);
   o3.Evaluate(&dnn, &ddnn);
-  print_to_yaml(FitFolder, &o2, &o3);
+  o4.Evaluate(&dnn, &ddnn, &d3nn);
+  print_obs_to_yaml(FitFolder, 0, &o2, &o3, &o4);
   
 
 
