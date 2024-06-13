@@ -15,7 +15,7 @@ namespace NTK
 
 
   template<typename ... Args>
-  void print_obs_to_yaml(const std::string &FitFolder, const int &iteration, Args&& ... args) {
+  void print_obs_to_yaml(const std::string &FitFolder, const int &iteration, const int &replica, Args&& ... args) {
     // Output parameters into yaml file
 
     std::vector< std::pair< std::string, std::vector<double>> > name_tensor_pairs;
@@ -40,7 +40,7 @@ namespace NTK
     emitter << YAML::EndMap;
     emitter << YAML::EndSeq;
     emitter << YAML::Newline;
-    std::ofstream fout(FitFolder + "/log/replica_" + std::to_string(0) + ".yaml", std::ios::out | std::ios::app);
+    std::ofstream fout(FitFolder + "/log/replica_" + std::to_string(replica) + ".yaml", std::ios::out | std::ios::app);
     fout << emitter.c_str();
     fout.close();
     return;

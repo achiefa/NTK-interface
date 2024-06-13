@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
   o2.Evaluate(&dnn);
   o3.Evaluate(&dnn, &ddnn);
   o4.Evaluate(&dnn, &ddnn, &d3nn);
-  print_obs_to_yaml(FitFolder, 0, &o2, &o3, &o4);
+  print_obs_to_yaml(FitFolder, 0, replica, &o2, &o3, &o4);
   
 
 
