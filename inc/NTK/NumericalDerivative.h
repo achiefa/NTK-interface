@@ -107,6 +107,10 @@ namespace NTK
                                           std::vector<double> input,
                                           double const& eps);
 
+    std::vector<double> HelperSecondFiniteDer2 (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps);
+
     std::vector<double> HelperThirdFiniteDer (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);

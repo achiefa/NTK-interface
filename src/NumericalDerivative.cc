@@ -37,7 +37,7 @@ namespace NTK
     return results;
   }
 
-//__________________________________________________________________________________________
+ //__________________________________________________________________________________________
   std::vector<double> FiniteDifferenceVec (
     std::function<std::vector<double> (std::vector<double> const&, std::vector<double>)> f,
     std::vector<double> parameters,
@@ -81,19 +81,19 @@ namespace NTK
     int counter = 0;
 
     for (int ip = 0; ip < np; ip++) {
+      for (int jp = 0; jp < np; jp++) {
         std::vector<double> ParFF = parameters;
         std::vector<double> ParFB = parameters;
         std::vector<double> ParBF = parameters;
         std::vector<double> ParBB = parameters;
-      for (int jp = 0; jp < np; jp++) {
-        ParFF[ip] = parameters[ip] * ( 1. + eps);
-        ParFF[jp] = parameters[jp] * ( 1. + eps);
-        ParFB[ip] = parameters[ip] * ( 1. + eps);
-        ParFB[jp] = parameters[jp] * ( 1. - eps);
-        ParBF[ip] = parameters[ip] * ( 1. - eps);
-        ParBF[jp] = parameters[jp] * ( 1. + eps);
-        ParBB[ip] = parameters[ip] * ( 1. - eps);
-        ParBB[jp] = parameters[jp] * ( 1. - eps);
+        ParFF[ip] +=  parameters[ip] * eps;
+        ParFF[jp] +=  parameters[jp] * eps;
+        ParFB[ip] +=  parameters[ip] * eps;
+        ParFB[jp] -=  parameters[jp] * eps;
+        ParBF[ip] -=  parameters[ip] * eps;
+        ParBF[jp] +=  parameters[jp] * eps;
+        ParBB[ip] -=  parameters[ip] * eps;
+        ParBB[jp] -=  parameters[jp] * eps;
         std::vector<double> f_FF = f(x, ParFF);
         std::vector<double> f_FB = f(x, ParFB);
         std::vector<double> f_BF = f(x, ParBF);
@@ -101,10 +101,10 @@ namespace NTK
         std::vector<double> f_FF_BB (f_FF.size(), 0.);
         std::vector<double> f_FB_BF (f_FF.size(), 0.);
         std::vector<double> res (f_FF.size(), 0.);
-        std::transform(f_FF.begin(), f_FF.end(), f_BB.begin(), f_FF_BB.begin(), [&] (double f1, double f2) {return f1 + f2; });
-        std::transform(f_FB.begin(), f_FB.end(), f_BF.begin(), f_FB_BF.begin(), [&] (double f1, double f2) {return f1 - f2; });
+        std::transform(f_FF.begin(), f_FF.end(), f_BB.begin(), f_FF_BB.begin(), [&] (double f1, double f2) {return f1 + f2;});
+        std::transform(f_FB.begin(), f_FB.end(), f_BF.begin(), f_FB_BF.begin(), [&] (double f1, double f2) {return f1 + f2;});
         std::transform(f_FF_BB.begin(), f_FF_BB.end(), f_FB_BF.begin(), results.begin() + counter, [&] (double f1, double f2)
-        {
+        { 
           return (f1 - f2) / 4. / eps / eps / parameters[ip] / parameters[jp];
         });
         counter += f_FF.size();
@@ -133,27 +133,57 @@ namespace NTK
     return FiniteDifferenceVec(dNN_func, NN->GetParameters(), input, np * nout + nout, eps);
     }
 
+
+    // NEW STUFF
+    //________________________________
+    typedef std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> Functor;
+    std::vector<double> dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, int const& nout, std::vector<double> const& x, std::vector<double> parameters)
+    {
+      nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+      aux_nn.SetParameters(parameters);
+      std::vector<double> res = aux_nn.Derive(x);
+      res.erase(res.begin(), res.begin() + nout);
+      return res; 
+    }
+    
+
+    std::vector<double> helper::HelperSecondFiniteDer2 (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps)
+    { 
+      int nout = NN->GetArchitecture().back();
+      int np = NN->GetParameterNumber();
+
+      // Define functor
+      std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNNAD_wrapper
+      {
+        [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
+        {
+          return dNNAD_cleaner(NN, nout, x, parameters);
+        }
+      };
+
+
+      return FiniteDifferenceVec(dNNAD_wrapper, NN->GetParameters(), input, np * nout, eps);
+    }
+
     //__________________________________________________________________________________________
     std::vector<double> helper::HelperThirdFiniteDer (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps)
     {
-    // Initialise std::function for second derivative
-    int nout = NN->GetArchitecture().back();
-    int np = NN->GetParameterNumber();
-    std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN_func
-    {
-      [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
-      {
-        nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
-        aux_nn.SetParameters(parameters);
-        std::vector<double> res = aux_nn.Derive(x);
-        res.erase(res.begin(), res.begin() + nout);
-        return res;
-      }
-    };
-    return FiniteSecondDifferenceVec(dNN_func, NN->GetParameters(), input, np * nout, eps);
-    }
+      int nout = NN->GetArchitecture().back();
+      int np = NN->GetParameterNumber();
 
-    
+      // Define functor
+      std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNNAD_wrapper
+      {
+        [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
+        {
+          return dNNAD_cleaner(NN, nout, x, parameters);
+        }
+      };
+
+      return FiniteSecondDifferenceVec(dNNAD_wrapper, NN->GetParameters(), input, np * nout, eps);
+    }
 }
