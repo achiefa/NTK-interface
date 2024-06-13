@@ -14,4 +14,6 @@ FetchContent_MakeAvailable(Catch2)
 list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
 include(Catch)
 include(Coverage)
+
 add_subdirectory(observable_test)
+add_subdirectory(derivatives_test)
