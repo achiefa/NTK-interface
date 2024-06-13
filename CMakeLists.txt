@@ -29,12 +29,6 @@ endif()
 # Set flags for gcc-like compilers
 set (gcc_like_cxx "$<COMPILE_LANG_AND_ID:CXX,ARMClang,AppleClang,Clang,GNU,LCC>")
 
-# Set optimisation flags
-#option(OPTIMISE "Build shared-libray instead of static-libray" ON)
-#if(OPTIMISE EQUAL ON)
-#    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
-#endif(OPTIMISE)
-
 configure_file(
     "${PROJECT_SOURCE_DIR}/inc/NTK/version.h.in"
     "${PROJECT_SOURCE_DIR}/inc/NTK/version.h"
@@ -42,7 +36,9 @@ configure_file(
 
 include_directories(${PROJECT_SOURCE_DIR}/inc)
 
+#set(CMAKE_MODULE_PATH "")
 find_package(PkgConfig REQUIRED)
+find_package(benchmark REQUIRED)
 pkg_search_module(EIGEN3 REQUIRED eigen3)
 pkg_search_module(YAML REQUIRED yaml-cpp)
 find_package(ceres REQUIRED)
