@@ -4,76 +4,13 @@
 #include "NNAD/FeedForwardNN.h"
 #include <list>
 
-NTK::Tensor<3> utility_return_dNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  Eigen::Tensor<double, 3> d_NN (batch_size, nout, np);
-  d_NN.setZero();
 
-  for (int a = 0; a < batch_size; a++){
-    std::vector<double> input_a = vec_data[a];
-    // -------------------------- First derivative -------------------------
-    // .data() is needed because returns a direct pointer to the memory array used internally by the vector
-    std::vector<double> DD = nn->Derive(input_a);
-    Eigen::TensorMap< Eigen::Tensor<double, 2, Eigen::ColMajor> > temp (DD.data(), nout, np + 1); // Col-Major
-
-    // Get rid of the first column (the outputs) and stores only first derivatives
-    Eigen::array<Eigen::Index, 2> offsets = {0, 1};
-    Eigen::array<Eigen::Index, 2> extents = {nout, np};
-    d_NN.chip(a,0) = temp.slice(offsets, extents);
-  }
-  return d_NN;
-}
-
-double sum_utility_return_dNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  auto tensor = utility_return_dNN(batch_size, nout, np, nn, vec_data);
-  Eigen::Tensor<double, 0> target = tensor.sum();
-  return target(0);
-}
-
-const double eps = 1.e-5;
-
-NTK::Tensor<4> utility_return_ddNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  NTK::Tensor<4> dd_NN (batch_size, nout, np, np);
-  dd_NN.setZero();
-
-  for (int a = 0; a < batch_size; a++){
-    std::vector<double> input_a = vec_data[a];
-    std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(nn, input_a, eps); // Compute second derivatives
-
-    // Store into ColMajor tensor
-    // The order of the dimensions has been tested in "SecondDerivative", and worked out by hand.
-    Eigen::TensorMap< Eigen::Tensor<double, 3, Eigen::ColMajor> > ddNN (results_vec.data(), nout, np + 1, np);
-
-    // Swap to ColMajor for compatibility and reshape
-    Eigen::array<int, 3> new_shape{{0, 2, 1}};
-    Eigen::Tensor<double, 3> ddNN_reshape = ddNN.shuffle(new_shape);
-
-    // Get rid of the first column (the firs derivatives) and stores only second derivatives
-    Eigen::array<Eigen::Index, 3> offsets_3 = {0, 0, 1};
-    Eigen::array<Eigen::Index, 3> extents_3 = {nout, np, np};
-    dd_NN.chip(a,0) = ddNN_reshape.slice(offsets_3, extents_3);
-  }
-  return dd_NN;
-}
-
-double sum_utility_return_ddNN(int batch_size, int nout, int np, NTK::NNAD* nn, std::vector<NTK::data> vec_data) {
-  auto tensor = utility_return_ddNN(batch_size, nout, np, nn, vec_data);
-  Eigen::Tensor<double, 0> target = tensor.sum();
-  return target(0);
-}
-
-
-
-
-///////////////////////////////////////////////////////
-//
-//            Test for numerical derivatives        
-//
-//////////////////////////////////////////////////////
 struct NonZeroElement {
   NonZeroElement(std::function<double(double)> f, std::vector<int> list) : _index(list), _f(f) {}
   std::vector<int> _index;
   std::function<double(double)> _f;
 };
+
 class KnownNNAD {
   public:
   KnownNNAD(nnad::FeedForwardNN<double> *NN) {
@@ -169,7 +106,6 @@ class KnownNNAD {
     return res;
   }
 
-
   Eigen::Tensor<double,1> Tensor_wrapper_jacobian(double x) {
     std::vector<double> jaco = jacobian(x);
     Eigen::TensorMap<Eigen::Tensor<double,1>> res(jaco.data(), jaco.size());
@@ -178,7 +114,6 @@ class KnownNNAD {
 
 
   Eigen::MatrixXd Hessian (double x) {
-
     Eigen::MatrixXd hes {
 //     B    W1   W2   b1   b2   w1   w2
       {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},  // B 
@@ -210,7 +145,13 @@ class KnownNNAD {
     return hes;
   }
 
-  Eigen::Tensor<double,3> ThirdDerive (double x) {
+  Eigen::Tensor<double, 2> tensor_wrapper_hessian(double x) {
+    Eigen::MatrixXd hessian = Hessian(x);
+    Eigen::TensorMap<Eigen::Tensor<double,2, Eigen::ColMajor>> result (hessian.data(), hessian.rows(), hessian.cols());
+    return result;
+  }
+
+  Eigen::Tensor<double,3> ThirdDerivative (double x) {
     Eigen::Tensor<double, 3> Result (7, 7, 7);
     Result.setZero();
 
@@ -242,9 +183,40 @@ class KnownNNAD {
     return res;
   }
 
-  /* double O4 (double x1, double x2, double x3, double x4) {
+  double O4 (double x1, double x2, double x3, double x4) {
+    auto j1 = Tensor_wrapper_jacobian(x1);
+    auto j2 = Tensor_wrapper_jacobian(x2);
+    auto j3 = Tensor_wrapper_jacobian(x3);
+    auto j4 = Tensor_wrapper_jacobian(x4);
+    auto H1 = tensor_wrapper_hessian(x1);
+    auto H2 = tensor_wrapper_hessian(x2);
+    auto H3 = tensor_wrapper_hessian(x3);
+    auto T1 = ThirdDerivative(x1);
+    auto T2 = ThirdDerivative(x2);
 
-  } */
+    // Part 1
+    Eigen::array<Eigen::IndexPair<int>, 1> T_j = {Eigen::IndexPair<int>(2, 0)};
+    Eigen::array<Eigen::IndexPair<int>, 1> H_H = {Eigen::IndexPair<int>(1, 1)};
+    Eigen::array<Eigen::IndexPair<int>, 1> part1_rule = {Eigen::IndexPair<int>(1, 0)};
+    auto temp = T1.contract(j2, T_j) +
+                T2.contract(j1, T_j) +
+                H1.contract(H2, H_H) +
+                H2.contract(H1, H_H);
+    Eigen::Tensor<double,1> part1 = temp.contract(j3, part1_rule);
+
+    // Part
+    Eigen::array<Eigen::IndexPair<int>, 1> H_j = {Eigen::IndexPair<int>(1, 0)};
+    Eigen::array<Eigen::IndexPair<int>, 1> part2_rule = {Eigen::IndexPair<int>(1, 0)};
+    auto temp2 = H1.contract(j2, H_j) +
+                 H2.contract(j1, H_j);
+    Eigen::Tensor<double, 1> part2 = temp2.contract(H3, part2_rule);
+
+    // Last contraction
+    Eigen::array<Eigen::IndexPair<int>, 1> last_contraction = {Eigen::IndexPair<int>(0, 0)};
+    Eigen::Tensor<double,0> result = part1.contract(j4, last_contraction) + part2.contract(j4, last_contraction);
+
+    return result(0);
+  }
 
   private:
   double b1, b2, w1, w2, B, W1, W2;

@@ -87,27 +87,35 @@ namespace NTK{
    *
    * The observable is computed as follows
    *
-   *    O3_{i1 a1}{i2 a2}{i3 a3} = d_mu f_{i1 a1} d_nu f_{i2 a2} d_mu_nu f_{i3 a3} + (1 <-> 2)
+   *    O3_{i1 a1}{i2 a2}{i3 a3} = d_mu1 f_{i3 a3} * ( d_mu1_mu2 f_{i1 a1} d_mu2 f_{i2 a2} + d_mu1_mu2 f_{i2 a2} d_mu2 f_{i1 a1})
    *
-   * and the order of the indices in the tensor is [ a3 ,i3 , a1, i1, a2, i2 ].
+   * and the order of the indices in the tensor is [ a3 ,i3 , a1, i1, a2, i2 ] ????????????/
    * 
    * @param dnn
    * @param ddnn
    * @return Tensor<6> 
    */
   Tensor<6> O3::contract_impl(dNN *dnn, ddNN *ddnn) {
-    auto dnn_tensor = dnn->GetTensor();
-    auto ddnn_tensor = ddnn->GetTensor();
-    Eigen::array<Eigen::IndexPair<int>, 0> tensor_product = {};
-    Eigen::array<Eigen::IndexPair<int>, 2> first_contraction = {
-        Eigen::IndexPair<int>(2, 2), Eigen::IndexPair<int>(3, 5)};
-    auto d_mu_d_nu_f_ia = dnn_tensor.contract(dnn_tensor, tensor_product);
-    auto NTK_3 = ddnn_tensor.contract(d_mu_d_nu_f_ia, first_contraction);
+    auto dnn_tensor = dnn->GetTensor(); // [ a, i, mu ]
+    Tensor<4> ddnn_tensor = ddnn->GetTensor(); // [ a, i, mu1, mu2 ]
 
-    // Symmetrised
-    Eigen::array<int, 6> transpose({0,1, 4, 5, 2, 3});
-    auto NTK_3_symm = NTK_3 + NTK_3.shuffle(transpose);
-    return NTK_3_symm;
+    // d_mu1_mu2 f_1 d_mu2 f_2
+    Eigen::array<Eigen::IndexPair<int>, 1> ddNN_dnn_rule = {
+      Eigen::IndexPair<int>(3, 2)
+    };
+    Tensor<5> ddNN_dnn = ddnn_tensor.contract(dnn_tensor, ddNN_dnn_rule); // [a1, i1, mu, a2, i2]
+
+    // d_mu1_mu2 f_2 d_mu2 f_1
+    Eigen::array<int, 5> transpose({3, 4, 2, 0, 1});
+    Tensor<5> ddNN_dnn_symm = ddNN_dnn + ddNN_dnn.shuffle(transpose); // [a1, i1, mu, a2, i2] = [a2, i2, mu, a1, i1]
+
+    // Contraction with d_mu1 f_3
+    Eigen::array<Eigen::IndexPair<int>, 1> dnn_ddnn_dnn_rule = {
+      Eigen::IndexPair<int>(2, 2)
+    };
+    Tensor<6> result = ddNN_dnn_symm.contract(dnn_tensor, dnn_ddnn_dnn_rule); // [a1, i1, a2, i2, a3, i3] = [a2, i2, a1, i1, a3, i3]
+
+    return result;
   }
 
   //                                      O4
@@ -116,28 +124,7 @@ namespace NTK{
   /**
    * @brief Implementation
    * 
-   * The observable is computed as follows
-   * 
-   * O4_{i1 a1}...{i4 a4} = d_mu1 ( d_mu_1_mu_2 f_{i3 a3} d_mu_2 f_{i1 a1} d_mu_3 f_{i2 a1} + ( 1 <-> 2 ) ) d_mu_1 f_{i4 a4} .
-   * 
-   * The expression above evaluates as
-   * 
-   * O4_{i1 a1}...{i4 a4} = ( |1| + |2| + |3| )_{i1 a1}...{i4 a4} + ( 1 <-> 2 ) ,
-   * 
-   * where
-   * 
-   * - |1| = d_mu_1...3 f_{i3 a3} d_mu_2 f_{i1 a1} d_mu_3 f_{i2 a2} d_mu_1 f_{i4 a4}
-   *                                               ---------------------------------
-   * - |2| = d_mu_2_3 f_{i3 a3} d_mu_1_2 f_{i1 a1} d_mu_3 f_{i2 a2} d_mu_1 f_{i4 a4}
-   *                                               ---------------------------------
-   * - |3| from |2| with ( 1 <-> 2 )
-   * 
-   * Note that the underlined part is common to |1| and |2|. I will proceed as follows:
-   * - First, I compute the common object.
-   * - I then compute |1| and |2|
-   * - I obtain |3| from |2|
-   * - I compute the first part of O4
-   * - I then symmetrised with ( 1 <-> 2 )
+   * - I then symmetrise with ( 1 <-> 2 )
    * 
    * 
    * @param dnn 
@@ -146,28 +133,32 @@ namespace NTK{
    * @return Tensor<8> 
    */
   Tensor<8> O4::contract_impl(dNN *dnn, ddNN *d2nn, d3NN *d3nn) {
-    auto dnn_tensor = dnn->GetTensor();
-    auto d2nn_tensor = d2nn->GetTensor();
-    auto d3nn_tensor = d3nn->GetTensor();
-    Eigen::array<Eigen::IndexPair<int>, 0> tensor_product = {};
-    auto common_tensor = dnn_tensor.contract(dnn_tensor, tensor_product); // [ a2, i2, mu3, a4, i4, mu1]
+    auto dnn_tensor = dnn->GetTensor(); // [a, i, mu]
+    auto d2nn_tensor = d2nn->GetTensor(); // [a, i, mu, nu]
+    auto d3nn_tensor = d3nn->GetTensor(); // [a, i, mu, nu, rho]
 
-    // Tensor 1
-    Eigen::array<Eigen::IndexPair<int>, 3> contraction_1 = {
-        Eigen::IndexPair<int>(2, 8), Eigen::IndexPair<int>(3, 2), Eigen::IndexPair<int>(4, 5) };
-    auto tensor_1 = d3nn_tensor.contract( dnn_tensor.contract(common_tensor, tensor_product), contraction_1); // [ a3 i3 a1 i1 a2 i2 a4 i4 ]
+    // part 1
+    Eigen::array<Eigen::IndexPair<int>, 1> contraction_1 = {Eigen::IndexPair<int>(4, 2)};
+    Eigen::array<Eigen::IndexPair<int>, 1> contraction_2 = {Eigen::IndexPair<int>(3, 3)};
+    Eigen::array<Eigen::IndexPair<int>, 1> contraction_3 = {Eigen::IndexPair<int>(3, 2)};
+    Eigen::array<Eigen::IndexPair<int>, 1> contraction_4 = {Eigen::IndexPair<int>(2, 3)};
 
-    // Tensor 2
-    Eigen::array<Eigen::IndexPair<int>, 1> contraction_1_1 = {Eigen::IndexPair<int>(2,5)}; // [ a1 i1 mu2 a2 i2 mu3 a4 i4 ]
-    Eigen::array<Eigen::IndexPair<int>, 2> contraction_1_2= {Eigen::IndexPair<int>(2,2), Eigen::IndexPair<int>(3, 5)};
-    auto tensor_2 = d2nn_tensor.contract( d2nn_tensor.contract(common_tensor, contraction_1_1),   contraction_1_2); // [ a3 i3 a1 i1 a2 i2 a4 i4 ]
+    Eigen::array<int, 6> match_order({0, 1, 5, 2, 3, 4});
+    auto ddd_f1_d_f2 = d3nn_tensor.contract(dnn_tensor, contraction_1); // [a1, i1, mu1, mu2, a2, i2]
+    auto dd_f1_dd_f2 = (d2nn_tensor.contract(d2nn_tensor, contraction_2)).shuffle(match_order); // [a1, i1, mu2, a2, i2, mu1] -> [a1, i1, mu1, mu2, a2, i2]
+    auto part1 = (ddd_f1_d_f2 + dd_f1_dd_f2).contract(dnn_tensor, contraction_3); // [a1, i1, mu1, a2, i2, a3, i3]
 
-    // O4_asy
-    Eigen::array<int, 8> transpose({0, 1, 4, 5, 2, 3, 6, 7});
-    auto O4_asy = tensor_1 + tensor_2 + tensor_2.shuffle(transpose);
+    auto dd_f1_d_f2 = d2nn_tensor.contract(dnn_tensor, contraction_3); // [a1, i1, mu2, a2, i2]
+    auto part2 = dd_f1_d_f2.contract(d2nn_tensor, contraction_4); // [a1, i1, a2, i2, a3, i3, mu1]
 
-    Tensor<8> O4_sym = O4_asy + O4_asy.shuffle(transpose);
-    return O4_sym;
+    Eigen::array<Eigen::IndexPair<int>, 1> contraction_part1 = {Eigen::IndexPair<int>(2, 2)};
+    Eigen::array<Eigen::IndexPair<int>, 1> contraction_part2 = {Eigen::IndexPair<int>(6, 2)};
+    auto asy_result = part1.contract(dnn_tensor, contraction_part1) + part2.contract(dnn_tensor, contraction_part2); // [a1, i1, a2, i2, a3, i3, a4, i4]
+
+    Eigen::array<int, 8> symmetrised({2, 3, 0, 1, 4, 5, 6, 7});
+    Tensor<8> sym_result = asy_result + asy_result.shuffle(symmetrised);
+
+    return sym_result;
   }
 
 }

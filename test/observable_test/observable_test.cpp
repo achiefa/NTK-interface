@@ -21,7 +21,7 @@ TEMPLATE_TEST_CASE( " Testing basic observable", "[Observable][Basic][template] 
   data_vector[2] = {0.8, 0.1, 0.3};
   data_vector[3] = {0.1, 0.9, 0.5};
 
-  SECTION( "Testing constructor" ) {
+  SECTION( "Testing constructor " ) {
     TestType dnn (batch_size, nout, np);
     auto tensor = dnn.GetTensor();
     Eigen::Tensor<double, 0> result = tensor.sum();
@@ -53,38 +53,12 @@ TEMPLATE_TEST_CASE( " Testing basic observable", "[Observable][Basic][template] 
       REQUIRE(dnn->GetDataMap().size() == 1);
     }
 
-    SECTION( " Testing `is_copmuted` ") {
+    SECTION( " Testing `is_copmuted` method ") {
       REQUIRE_FALSE(dnn->is_computed());
       dnn->Evaluate(data_vector , nn.get());
       REQUIRE(dnn->is_computed());
     }
-
-    SECTION( "Testing against truth" ) {
-      double truth;
-      if (TestType::id == "NTK::dNN")
-        truth = sum_utility_return_dNN(batch_size, nout, np, nn.get(), data_vector);
-      else if (TestType::id == "NTK::ddNN")
-        truth = sum_utility_return_ddNN(batch_size, nout, np, nn.get(), data_vector);
-
-      SECTION( " Iterative " )   {
-        for (int a = 0; a < data_vector.size(); a++) {
-          dnn->Evaluate(data_vector[a], a, nn.get());
-        }
-        Eigen::Tensor<double, 0> guess = dnn->GetTensor().sum();
-        REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(truth));
-      }
-
-      SECTION( " Vector " )   {
-        dnn->Evaluate(data_vector, nn.get());
-        Eigen::Tensor<double, 0> guess = dnn->GetTensor().sum();
-        REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(truth));
-      }
-
-    } 
-
-    SUCCEED( " Evaluation test succeeded" );
   }
-  SUCCEED( " Observable test succeeded" );
 }
 
 
@@ -141,48 +115,82 @@ TEST_CASE( " Testing combined observable", "[Observable][Combined][template] ") 
     }
   }
 
-  SECTION( " Testing against old implementation ") {
+  SECTION( " Testing against dummy NN ") {
+    const std::vector<int> arch{1, 2, 1};
+    std::unique_ptr<NTK::NNAD> nn = std::make_unique<NTK::NNAD>(arch, 0, false,
+                                        nnad::Tanh<double>,  nnad::dTanh<double>,
+                                        nnad::OutputFunction::LINEAR);
+    KnownNNAD dummyNN(nn.get());
+    NTK::data xa {0.5};
+    NTK::data xb {0.2};
+    NTK::data xg {0.7};
+    NTK::data xd {0.1};
+    const int nout = 1;
 
-    SECTION( " Test for O2 ") {
-      NTK::O2 ntk (batch_size, nout);
-      NTK::dNN dnn(batch_size, nout, np);
-      dnn.Evaluate(data_vector, nn.get());
+    SECTION( " Testing NTK ") {
+      NTK::dNN dnn(nn.get(), {xa, xb});
+      NTK::O2 ntk (2, nout);
+      dnn.Evaluate();
       ntk.Evaluate(&dnn);
-      auto dnn_tensor = dnn.GetTensor();
       auto ntk_tensor = ntk.GetTensor();
-
-      // Contraction old way
-      Eigen::array<Eigen::IndexPair<int>, 1> double_contraction = { Eigen::IndexPair<int>(2,2) };
-      NTK::Tensor<4> truth_tensor = dnn_tensor.contract(dnn_tensor, double_contraction);
-
-      Eigen::Tensor<double, 0> guess = ntk_tensor.sum();
-      Eigen::Tensor<double, 0> target = truth_tensor.sum();
-      REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(target(0)));
+      double NTK_aa = dummyNN.NTK(xa[0], xa[0]);
+      double NTK_ab = dummyNN.NTK(xa[0], xb[0]);
+      double NTK_ba = dummyNN.NTK(xb[0], xa[0]);
+      double NTK_bb = dummyNN.NTK(xb[0], xb[0]);
+      REQUIRE_THAT(NTK_aa, Catch::Matchers::WithinRel(ntk_tensor(0,0,0,0)));
+      REQUIRE_THAT(NTK_ab, Catch::Matchers::WithinRel(ntk_tensor(0,1,0,0)));
+      REQUIRE_THAT(NTK_ba, Catch::Matchers::WithinRel(ntk_tensor(1,0,0,0)));
+      REQUIRE_THAT(NTK_bb, Catch::Matchers::WithinRel(ntk_tensor(1,1,0,0)));
     }
 
-    SECTION( " Test for O3 ") {
-      NTK::O3 ntk_3 (batch_size, nout);
-      NTK::dNN dnn(batch_size, nout, np);
-      NTK::ddNN ddnn(batch_size, nout, np);
-      dnn.Evaluate(data_vector, nn.get());
-      ddnn.Evaluate(data_vector, nn.get());
-      ntk_3.Evaluate(&dnn, &ddnn);
-      auto dnn_tensor = dnn.GetTensor();
-      auto ddnn_tensor = ddnn.GetTensor();
-      auto ntk_3_tensor = ntk_3.GetTensor();
+    SECTION( " Testing O3 ") {
+      std::vector<NTK::data> batch {xa,xb,xg};
+      NTK::dNN dnn(nn.get(), {xa, xb, xg});
+      NTK::ddNN ddnn(nn.get(), {xa, xb, xg});
+      NTK::O3 O3 (3, nout);
+      dnn.Evaluate();
+      ddnn.Evaluate();
+      O3.Evaluate(&dnn, &ddnn);
+      auto O3_tensor = O3.GetTensor();
+      double O3_known;
 
-      // Contraction old way
-      Eigen::array<Eigen::IndexPair<int>, 0> tensor_product = {  };
-      Eigen::array<Eigen::IndexPair<int>, 2> first_contraction = { Eigen::IndexPair<int>(2,2), Eigen::IndexPair<int>(3,5) };
-      Eigen::Tensor<double, 6> d_mu_d_nu_f_ia = dnn_tensor.contract(dnn_tensor, tensor_product);
-      Eigen::Tensor<double, 6> truth_tensor = ddnn_tensor.contract(d_mu_d_nu_f_ia, first_contraction);
+      // Test all possible combinations
+      for(int i1=0; i1 < 3; i1++) {
+        for(int i2=0; i2 < 3; i2++) {
+          for(int i3=0; i3 < 3; i3++) {
+            O3_known = dummyNN.O3(batch[i1][0], batch[i2][0], batch[i3][0]);
+            REQUIRE_THAT(O3_known, Catch::Matchers::WithinAbs(O3_tensor(i1, 0, i2, 0, i3, 0), 1.e-6));
+          }
+        }
+      }
+    }
 
-      Eigen::Tensor<double, 0> guess = ntk_3_tensor.sum();
-      Eigen::Tensor<double, 0> target = truth_tensor.sum();
-      REQUIRE_THAT(guess(0), Catch::Matchers::WithinRel(target(0)));
+    SECTION(" Testing O4 ") {
+      std::vector<NTK::data> batch {xa, xb, xg, xd};
+      NTK::dNN dnn(nn.get(), batch);
+      NTK::ddNN ddnn(nn.get(), batch);
+      NTK::d3NN d3nn(nn.get(), batch);
+      NTK::O4 O4 (4, nout);
+      dnn.Evaluate();
+      ddnn.Evaluate();
+      d3nn.Evaluate();
+      O4.Evaluate(&dnn, &ddnn, &d3nn);
+      auto O4_tensor = O4.GetTensor();
+      double O4_known;
+
+      // Test all possible combinations
+      for(int i1=0; i1 < 4; i1++) {
+        for(int i2=0; i2 < 4; i2++) {
+          for(int i3=0; i3 < 4; i3++) {
+            for(int i4=0; i4 < 4; i4++) {
+              O4_known = dummyNN.O4(batch[i1][0], batch[i2][0], batch[i3][0], batch[i4][0]);
+              REQUIRE_THAT(O4_known, Catch::Matchers::WithinAbs(O4_tensor(i1, 0, i2, 0, i3, 0, i4, 0), 1.e-4));
+            }
+          }
+        }
+      }
     }
   }
-  SUCCEED( " Observable test succeeded" );
 }
 
 
