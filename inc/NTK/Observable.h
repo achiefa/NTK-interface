@@ -238,7 +238,7 @@ class COMBINED : public IObservable<D, _RANK> {
 class dNN : public BASIC<dNN, 3> {
   public:
   /**
-   * @brief Construct a new d N N object
+   * @brief Construct a new d NN object
    * 
    * @param batch_size 
    * @param nout 
