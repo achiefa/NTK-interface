@@ -49,9 +49,8 @@ namespace NTK{
     // Eigen::array<Eigen::Index, 3> extents_3 = {_d[1], _d[2], _d[3]};
     // return ddNN_reshape.slice(offsets_3, extents_3); */
     //////
-    std::vector<double> results_vec = NTK::helper::nd_dNNAD(nn, X, eps); // Compute second derivatives
 
-    // Store into ColMajor tensor
+    std::vector<double> results_vec = NTK::helper::nd_dNNAD(nn, X, eps); // Compute second derivatives
     Eigen::TensorMap<Eigen::Tensor<double, 3, Eigen::ColMajor>> dd_NN(results_vec.data(), _d[1], _d[2], _d[3]);
     return dd_NN;
   }
