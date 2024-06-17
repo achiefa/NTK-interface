@@ -113,35 +113,18 @@ namespace NTK
     return results;
   }
 
-  //__________________________________________________________________________________________
-  std::vector<double> helper::HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
-                                          std::vector<double> input,
-                                          double const& eps)
-    {
-    // Initialise std::function for second derivative
-    std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN_func
-    {
-      [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
-      {
-        nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
-        aux_nn.SetParameters(parameters);
-        return aux_nn.Derive(x);
-      }
-    };
-    int np = NN->GetParameterNumber();
-    int nout = NN->GetArchitecture().back();
-    return FiniteDifferenceVec(dNN_func, NN->GetParameters(), input, np * nout + nout, eps);
-    }
+    //++++++++++++++++++++++++
+    //      Helpers
+    //++++++++++++++++++++++++
 
-
-    // NEW STUFF
-    //________________________________
-    std::vector<double> dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, std::vector<double> const& x) {
+    //________________________________________________________________________________________________________
+    std::vector<double> helper::dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, std::vector<double> const& x) {
       std::vector<double> res = NN->Derive(x);
       res.erase(res.begin(), res.begin() + NN->GetArchitecture().back());
       return res; 
     }
 
+    //___________________________________________________________________
     std::vector<double> helper::nddNNAD (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps)
@@ -162,8 +145,8 @@ namespace NTK
       return FiniteSecondDifferenceVec(NNAD_wrapper, NN->GetParameters(), input, nout, eps);
     }
 
-    
-    std::vector<double> helper::HelperFirstFiniteDer (nnad::FeedForwardNN<double> *NN,
+    //________________________________________________________________________________
+    std::vector<double> helper::ndNNAD (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps)
     {
@@ -183,7 +166,8 @@ namespace NTK
       return FiniteDifferenceVec(NNAD_wrapper, NN->GetParameters(), input, nout, eps);
     }
 
-    std::vector<double> helper::HelperSecondFiniteDer2 (nnad::FeedForwardNN<double> *NN,
+    //__________________________________________________________________________________
+    std::vector<double> helper::nd_dNNAD (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps)
     { 
@@ -204,8 +188,8 @@ namespace NTK
       return FiniteDifferenceVec(dNNAD_wrapper, NN->GetParameters(), input, np * nout, eps);
     }
 
-    //__________________________________________________________________________________________
-    std::vector<double> helper::HelperThirdFiniteDer (nnad::FeedForwardNN<double> *NN,
+    //________________________________________________________________________________
+    std::vector<double> helper::ndd_dNNAD (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps)
     {
@@ -224,5 +208,25 @@ namespace NTK
       };
 
       return FiniteSecondDifferenceVec(dNNAD_wrapper, NN->GetParameters(), input, np * nout, eps);
+    }
+
+    //__________________________________________________________________________________________
+    std::vector<double> helper::HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps)
+    {
+    // Initialise std::function for second derivative
+    std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> dNN_func
+    {
+      [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
+      {
+        nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+        aux_nn.SetParameters(parameters);
+        return aux_nn.Derive(x);
+      }
+    };
+    int np = NN->GetParameterNumber();
+    int nout = NN->GetArchitecture().back();
+    return FiniteDifferenceVec(dNN_func, NN->GetParameters(), input, np * nout + nout, eps);
     }
 }

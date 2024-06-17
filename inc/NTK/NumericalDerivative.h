@@ -98,10 +98,18 @@ namespace NTK
     int const& size_f,
     double const& eps);
 
-  std::vector<double> dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, std::vector<double> const& x);
 
   namespace helper
   {
+  /**
+   * @brief Remove spurious terms in the Jacobian vector of NNAD
+   * 
+   * @param NN 
+   * @param x 
+   * @return std::vector<double> 
+   */
+  std::vector<double> dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, std::vector<double> const& x);
+  
     /**
      * @brief Helper function to compute second derivative of the NN
     */
@@ -109,20 +117,20 @@ namespace NTK
                                           std::vector<double> input,
                                           double const& eps);
 
-  // Replace wih ndNNAD
-   std::vector<double> HelperFirstFiniteDer (nnad::FeedForwardNN<double> *NN,
+  // Old name HelperFirstFiniteDer
+   std::vector<double> ndNNAD (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);
-  // Replace with nd_dNNAD
+  // Only for legacy compatiblity
     std::vector<double> HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);
-  // Replace with nd_dNNAD2
-    std::vector<double> HelperSecondFiniteDer2 (nnad::FeedForwardNN<double> *NN,
+
+    std::vector<double> nd_dNNAD (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);
-  // Replace with ndd_dNNAD
-    std::vector<double> HelperThirdFiniteDer (nnad::FeedForwardNN<double> *NN,
+  // Replace with ndd_dNNAD Old name HelperThirdFiniteDer
+    std::vector<double> ndd_dNNAD (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);
   }

@@ -51,8 +51,8 @@ TEST_CASE( " Test first order num. derivative ", "[Derivatives][First] ") {
                                         nnad::OutputFunction::LINEAR);
     KnownNNAD dummyNN(nn.get());
     NTK::data X {0.5};
-    std::vector<double> NNADJacobian = NTK::dNNAD_cleaner(nn.get(), X);
-    std::vector<double> nNNADJacobian = NTK::helper::HelperFirstFiniteDer(nn.get(), X, 1.e-5);
+    std::vector<double> NNADJacobian = NTK::helper::dNNAD_cleaner(nn.get(), X);
+    std::vector<double> nNNADJacobian = NTK::helper::ndNNAD(nn.get(), X, 1.e-5);
 
     REQUIRE( NNADJacobian.size() == nNNADJacobian.size() );
     for(size_t ip=0; ip<NNADJacobian.size(); ip++) {
@@ -96,7 +96,7 @@ TEST_CASE( " Test second order num. derivative ", "[Derivatives][Second] " ) {
 
     SECTION(" Test ndd = nd(d) ") {
       std::vector<double> ndd_NNAD = NTK::helper::nddNNAD (nn.get(), X, eps1);
-      std::vector<double> nd_dNNAD = NTK::helper::HelperSecondFiniteDer2 (nn.get(), X, eps1);
+      std::vector<double> nd_dNNAD = NTK::helper::nd_dNNAD (nn.get(), X, eps1);
 
       REQUIRE( ndd_NNAD.size() == nd_dNNAD.size() );
       for(size_t ip=0; ip<nd_dNNAD.size(); ip++) {
@@ -136,7 +136,7 @@ TEST_CASE(" Test dummy neural network ") {
   }
 
   SECTION(" Testing Hessian ") {
-    std::vector<double> NNADHessian = NTK::helper::HelperSecondFiniteDer2(nn.get(), X, 1.e-6);
+    std::vector<double> NNADHessian = NTK::helper::nd_dNNAD(nn.get(), X, 1.e-6);
     Eigen::MatrixXd DummyHessian = dummyNN.Hessian(X[0]);
 
     for(size_t ip=0; ip<np; ip++) {
@@ -151,7 +151,7 @@ TEST_CASE(" Test dummy neural network ") {
   }
 
   SECTION(" Testing third derivative ") {
-    std::vector<double> NNADThird = NTK::helper::HelperThirdFiniteDer(nn.get(), X, 1.e-5);
+    std::vector<double> NNADThird = NTK::helper::ndd_dNNAD(nn.get(), X, 1.e-5);
     Eigen::Tensor<double,3> DummyThird = dummyNN.ThirdDerivative(X[0]);
 
     for(size_t ip=0; ip<np; ip++) {
