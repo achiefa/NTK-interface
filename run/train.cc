@@ -118,9 +118,9 @@ int main(int argc, char *argv[])
   NTK::dNN dnn(nn, data_batch);
   NTK::ddNN ddnn(nn, data_batch);
   NTK::d3NN d3nn(nn, data_batch);
-  NTK::O2 o2(NNarchitecture.back(), np);
-  NTK::O3 o3(NNarchitecture.back(), np);
-  NTK::O4 o4(NNarchitecture.back(), np);
+  NTK::O2 o2(batch_size, NNarchitecture.back());
+  NTK::O3 o3(batch_size, NNarchitecture.back());
+  NTK::O4 o4(batch_size, NNarchitecture.back());
   dnn.Evaluate();
   ddnn.Evaluate();
   d3nn.Evaluate();

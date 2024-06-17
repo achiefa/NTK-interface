@@ -152,7 +152,7 @@ TEST_CASE(" Test dummy neural network ") {
 
   SECTION(" Testing third derivative ") {
     std::vector<double> NNADThird = NTK::helper::HelperThirdFiniteDer(nn.get(), X, 1.e-5);
-    Eigen::Tensor<double,3> DummyThird = dummyNN.ThirdDerive(X[0]);
+    Eigen::Tensor<double,3> DummyThird = dummyNN.ThirdDerivative(X[0]);
 
     for(size_t ip=0; ip<np; ip++) {
       for(size_t jp=0; jp<np; jp++) {
