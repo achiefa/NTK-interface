@@ -6,114 +6,7 @@
 #include "NNAD/FeedForwardNN.h"
 #include "NTK/utility_test.hpp"
 #include "NTK/NumericalDerivative.h"
-
-
-class KnwonNNAD {
-  public:
-  KnwonNNAD(nnad::FeedForwardNN<double> *NN) {
-    b1 = NN->GetBias(1,0);
-    b2 = NN->GetBias(1,1);
-    B  = NN->GetBias(2,0);
-    w1 = NN->GetLink(1, 0, 0);
-    w2 = NN->GetLink(1, 1, 0);
-    W1 = NN->GetLink(2, 0, 0);
-    W2 = NN->GetLink(2, 0, 1);
-  }
-
-  double tanh(double x) { return nnad::Tanh<double> (x); }
-  double dtanh(double x) { return nnad::dTanh<double> (x); }
-  double ddtanh(double x) { return -2. * tanh(x) * dtanh(x); }
-  double dddtanh(double x) { return -2. * dtanh(x) * dtanh(x) - 2. * tanh(x) * ddtanh(x); }
-  double phi_1 (double x) { return b1 + w1 * x; }
-  double phi_2 (double x) { return b2 + w2 * x; }
-  double PHI (double x) { return B + W1 * tanh(phi_1 (x)) + W2 * tanh(phi_2 (x)); }
-
-
-  double H13 (double x) { return dtanh(phi_1(x)); }
-  double H15 (double x) { return dtanh(phi_1(x)) * x; }
-  double H24 (double x) { return dtanh(phi_2(x)); }
-  double H26 (double x) { return dtanh(phi_2(x)) * x; }
-  double H33 (double x) { return W1 * ddtanh(phi_1(x)); }
-  double H35 (double x) { return W1 * x * ddtanh(phi_1(x)); }
-  double H44 (double x) { return W2 * ddtanh(phi_2(x)); }
-  double H46 (double x) { return W2 * x * ddtanh(phi_2(x)); }
-  double H55 (double x) { return W1 * ddtanh(phi_1(x)) * x * x; }
-  double H66 (double x) { return W2 * ddtanh(phi_2(x)) * x * x; }
-
-
-  std::vector<double> jacobian(double x) {
-    std::vector<double> jaco {1.0,
-                              tanh(phi_1(x)),
-                              tanh(phi_2(x)),
-                              W1 * dtanh(phi_1(x)),
-                              W2 * dtanh(phi_2(x)),
-                              W1 * x * dtanh(phi_1(x)),
-                              W2 * x * dtanh(phi_2(x))};
-    return jaco;
-  }
-
-  Eigen::MatrixXd Hessian (double x) {
-
-    Eigen::MatrixXd hes {
-      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-      {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}
-      };
-
-      hes(1,3) = H13(x);
-      hes(3,1) = hes(1,3);
-      hes(1,5) = H15(x);
-      hes(5,1) = hes(1,5);
-      hes(2,4) = H24(x);
-      hes(4,2) = hes(2,4);
-      hes(2,6) = H26(x);
-      hes(6, 2) = hes(2, 6);
-      hes(3,3) = H33(x);
-      hes(3,5) = H35(x);
-      hes(5,3) = hes(3,5);
-      hes(4,4) = H44(x);
-      hes(4,6) = H46(x);
-      hes(6,4) = hes(4,6);
-      hes(5,5) = H55(x);
-      hes(6,6) = H66(x);
-
-    return hes;
-  }
-
-  double NTK (double x1, double x2) {
-    std::vector<double> jaco1 = jacobian(x1);
-    std::vector<double> jaco2 = jacobian(x2);
-    double res = std::inner_product(jaco1.begin(), jaco1.end(), jaco2.begin(), 0.);
-    return res;
-  }
-
-    double O3 (double x1, double x2, double x3) {
-    std::vector<double> jaco1 = jacobian(x1);
-    std::vector<double> jaco2 = jacobian(x2);
-    double res = std::inner_product(jaco1.begin(), jaco1.end(), jaco2.begin(), 0.);
-    return res;
-  }
-
-  private:
-  double b1, b2, w1, w2, B, W1, W2;
-};
-
-std::function<std::vector<double> (std::vector<double> const&, std::vector<double>)> PolTestFunction
-    {
-      [] (std::vector<double> const& X, std::vector<double> parameters) -> std::vector<double>
-      {
-        double theta_1 = parameters[0];
-        double theta_2 = parameters[1];
-        double theta_3 = parameters[2];
-        double x = X[0];
-        std::vector<double> res{1. + theta_1 * x + pow(theta_2, 2) * pow(x, 3) + pow(theta_3, 4) * pow(x, 5)};
-        return res;
-      }
-    };
+#include "NTK/utility_test.hpp"
 
 double eps_catch2 = 1.e-5;
 
@@ -134,14 +27,10 @@ TEST_CASE( " Test polynomial " ) {
     }
 }
 
-TEST_CASE(" Test known neural network ") {
-
-}
-
 
 TEST_CASE( " Test first order num. derivative ", "[Derivatives][First] ") {
 
-  SECTION( " Test against polynomial ", "[Derivatives][First][Polynomial]") {
+  SECTION(" Test against polynomial ", "[Derivatives][First][Polynomial]") {
 
     std::vector<double> pars {1.7, 2.5, 3.7};
     std::vector<double> X {1.5};
@@ -154,15 +43,28 @@ TEST_CASE( " Test first order num. derivative ", "[Derivatives][First] ") {
     }
   }
 
-  SECTION( " Test against known network " ) {
+  SECTION( " Test with neural network " ) {
 
+    const std::vector<int> arch{1, 20, 35, 1};
+    std::unique_ptr<NTK::NNAD> nn = std::make_unique<NTK::NNAD>(arch, 0, false,
+                                        nnad::Tanh<double>,  nnad::dTanh<double>,
+                                        nnad::OutputFunction::LINEAR);
+    KnownNNAD dummyNN(nn.get());
+    NTK::data X {0.5};
+    std::vector<double> NNADJacobian = NTK::dNNAD_cleaner(nn.get(), X);
+    std::vector<double> nNNADJacobian = NTK::helper::HelperFirstFiniteDer(nn.get(), X, 1.e-5);
+
+    REQUIRE( NNADJacobian.size() == nNNADJacobian.size() );
+    for(size_t ip=0; ip<NNADJacobian.size(); ip++) {
+      REQUIRE_THAT( NNADJacobian[ip], Catch::Matchers::WithinRel(nNNADJacobian[ip], 1.e-5) );
+    }
   }
 }
 
 TEST_CASE( " Test second order num. derivative ", "[Derivatives][Second] " ) {
 
+    SECTION(" Test against polynomial ", "[Derivatives][Seceond][Polynomial]") {
 
-    SECTION( " Second derivative ") {
       std::vector<double> pars {1.7, 2.5, 3.7};
       std::vector<double> X {1.5};
       double x = X[0];
@@ -182,4 +84,97 @@ TEST_CASE( " Test second order num. derivative ", "[Derivatives][Second] " ) {
         }
       }
   }
+
+  SECTION( " Test with neural network " ) {
+
+    const std::vector<int> arch{1, 10, 10, 1};
+    std::unique_ptr<NTK::NNAD> nn = std::make_unique<NTK::NNAD>(arch, 0, false,
+                                        nnad::Tanh<double>,  nnad::dTanh<double>,
+                                        nnad::OutputFunction::LINEAR);
+    NTK::data X {0.5};
+    double eps1 = 1.e-4;
+
+    SECTION(" Test ndd = nd(d) ") {
+      std::vector<double> ndd_NNAD = NTK::helper::nddNNAD (nn.get(), X, eps1);
+      std::vector<double> nd_dNNAD = NTK::helper::HelperSecondFiniteDer2 (nn.get(), X, eps1);
+
+      REQUIRE( ndd_NNAD.size() == nd_dNNAD.size() );
+      for(size_t ip=0; ip<nd_dNNAD.size(); ip++) {
+        REQUIRE_THAT( ndd_NNAD[ip], Catch::Matchers::WithinAbs(nd_dNNAD[ip], 1.e-5) );
+      }
+    }
+  }
 }
+
+TEST_CASE(" Test dummy neural network ") {
+
+  const std::vector<int> arch{1, 2, 1};
+  std::unique_ptr<NTK::NNAD> nn = std::make_unique<NTK::NNAD>(arch, 0, false,
+                                        nnad::Tanh<double>,  nnad::dTanh<double>,
+                                        nnad::OutputFunction::LINEAR);
+  KnownNNAD dummyNN(nn.get());
+  NTK::data X {0.5};
+  const int np = nn->GetParameterNumber();
+
+  SECTION(" Testing output ") {
+    double dummyNNResult = dummyNN.PHI(X[0]);
+    std::vector<double> NNADResult = nn->Evaluate(X);
+
+    // Check both evaluate to the same value
+    REQUIRE_THAT(dummyNNResult, Catch::Matchers::WithinRel(NNADResult[0]));
+  }
+
+  SECTION(" Testing Jacobian ") {
+    // Check both evaluate to the same derivative
+    std::vector<double> NNADJacobian = nn->Derive(X);
+    NNADJacobian.erase(NNADJacobian.begin(), NNADJacobian.begin() + nn->GetArchitecture().back());
+    std::vector<double> DummyJacobian = dummyNN.jacobian(X[0]);
+    REQUIRE( NNADJacobian.size() == DummyJacobian.size() );
+    for (size_t ip=0; ip < DummyJacobian.size(); ip++) {
+      REQUIRE_THAT(DummyJacobian[ip], Catch::Matchers::WithinRel(NNADJacobian[KnownNNAD::DummyToNNAD.at(ip)]));
+    }
+  }
+
+  SECTION(" Testing Hessian ") {
+    std::vector<double> NNADHessian = NTK::helper::HelperSecondFiniteDer2(nn.get(), X, 1.e-6);
+    Eigen::MatrixXd DummyHessian = dummyNN.Hessian(X[0]);
+
+    for(size_t ip=0; ip<np; ip++) {
+      for(size_t jp=0; jp<np; jp++) {
+        int nip = KnownNNAD::DummyToNNAD.at(ip);
+        int njp = KnownNNAD::DummyToNNAD.at(jp);
+        double NNADres = NNADHessian[ njp + np * nip ];
+        double DummyRes = DummyHessian(ip,jp);
+        REQUIRE_THAT(DummyRes, Catch::Matchers::WithinRel(NNADres, eps_catch2));
+      }
+    }
+  }
+
+  SECTION(" Testing third derivative ") {
+    std::vector<double> NNADThird = NTK::helper::HelperThirdFiniteDer(nn.get(), X, 1.e-5);
+    Eigen::Tensor<double,3> DummyThird = dummyNN.ThirdDerive(X[0]);
+
+    for(size_t ip=0; ip<np; ip++) {
+      for(size_t jp=0; jp<np; jp++) {
+        for(size_t kp=0; kp<np; kp++) {
+          int nip = KnownNNAD::DummyToNNAD.at(ip);
+          int njp = KnownNNAD::DummyToNNAD.at(jp);
+          int nkp = KnownNNAD::DummyToNNAD.at(kp);
+          double NNAD_third = NNADThird[ nkp + np * njp + np * np * nip]; // row-major
+          double DummyRes_third = DummyThird(ip,jp, kp);
+          REQUIRE_THAT(DummyRes_third, Catch::Matchers::WithinAbs(NNAD_third, eps_catch2));
+        }
+      }
+    }
+  }
+
+  SECTION(" Test third derivatives ") {
+    INFO("To be implemented");
+  }
+
+
+  
+}
+
+
+

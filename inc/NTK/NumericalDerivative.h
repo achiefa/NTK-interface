@@ -98,19 +98,30 @@ namespace NTK
     int const& size_f,
     double const& eps);
 
+  std::vector<double> dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, std::vector<double> const& x);
+
   namespace helper
   {
     /**
      * @brief Helper function to compute second derivative of the NN
     */
+   std::vector<double> nddNNAD (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps);
+
+  // Replace wih ndNNAD
+   std::vector<double> HelperFirstFiniteDer (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps);
+  // Replace with nd_dNNAD
     std::vector<double> HelperSecondFiniteDer (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);
-
+  // Replace with nd_dNNAD2
     std::vector<double> HelperSecondFiniteDer2 (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);
-
+  // Replace with ndd_dNNAD
     std::vector<double> HelperThirdFiniteDer (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
                                           double const& eps);

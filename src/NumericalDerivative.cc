@@ -104,7 +104,7 @@ namespace NTK
         std::transform(f_FF.begin(), f_FF.end(), f_BB.begin(), f_FF_BB.begin(), [&] (double f1, double f2) {return f1 + f2;});
         std::transform(f_FB.begin(), f_FB.end(), f_BF.begin(), f_FB_BF.begin(), [&] (double f1, double f2) {return f1 + f2;});
         std::transform(f_FF_BB.begin(), f_FF_BB.end(), f_FB_BF.begin(), results.begin() + counter, [&] (double f1, double f2)
-        { 
+        {
           return (f1 - f2) / 4. / eps / eps / parameters[ip] / parameters[jp];
         });
         counter += f_FF.size();
@@ -136,16 +136,52 @@ namespace NTK
 
     // NEW STUFF
     //________________________________
-    typedef std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> Functor;
-    std::vector<double> dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, int const& nout, std::vector<double> const& x, std::vector<double> parameters)
-    {
-      nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
-      aux_nn.SetParameters(parameters);
-      std::vector<double> res = aux_nn.Derive(x);
-      res.erase(res.begin(), res.begin() + nout);
+    std::vector<double> dNNAD_cleaner(nnad::FeedForwardNN<double> *NN, std::vector<double> const& x) {
+      std::vector<double> res = NN->Derive(x);
+      res.erase(res.begin(), res.begin() + NN->GetArchitecture().back());
       return res; 
     }
+
+    std::vector<double> helper::nddNNAD (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps)
+    {
+      int nout = NN->GetArchitecture().back();
+
+      // Define functor
+      std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> NNAD_wrapper
+      {
+        [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
+        {
+          nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+          aux_nn.SetParameters(parameters);
+          return aux_nn.Evaluate(x);
+        }
+      };
+
+      return FiniteSecondDifferenceVec(NNAD_wrapper, NN->GetParameters(), input, nout, eps);
+    }
+
     
+    std::vector<double> helper::HelperFirstFiniteDer (nnad::FeedForwardNN<double> *NN,
+                                          std::vector<double> input,
+                                          double const& eps)
+    {
+      int nout = NN->GetArchitecture().back();
+
+      // Define functor
+      std::function<std::vector<double>(std::vector<double> const&, std::vector<double>)> NNAD_wrapper
+      {
+        [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
+        {
+          nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+          aux_nn.SetParameters(parameters);
+          return aux_nn.Evaluate(x);
+        }
+      };
+
+      return FiniteDifferenceVec(NNAD_wrapper, NN->GetParameters(), input, nout, eps);
+    }
 
     std::vector<double> helper::HelperSecondFiniteDer2 (nnad::FeedForwardNN<double> *NN,
                                           std::vector<double> input,
@@ -159,10 +195,11 @@ namespace NTK
       {
         [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
         {
-          return dNNAD_cleaner(NN, nout, x, parameters);
+          nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+          aux_nn.SetParameters(parameters);
+          return dNNAD_cleaner(&aux_nn, x);
         }
       };
-
 
       return FiniteDifferenceVec(dNNAD_wrapper, NN->GetParameters(), input, np * nout, eps);
     }
@@ -180,7 +217,9 @@ namespace NTK
       {
         [&] (std::vector<double> const& x, std::vector<double> parameters) -> std::vector<double>
         {
-          return dNNAD_cleaner(NN, nout, x, parameters);
+          nnad::FeedForwardNN<double> aux_nn{*NN}; // Requires pointer dereference
+          aux_nn.SetParameters(parameters);
+          return dNNAD_cleaner(&aux_nn, x);
         }
       };
 
