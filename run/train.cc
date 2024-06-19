@@ -6,14 +6,46 @@
 #include <getopt.h>
 #include <sys/stat.h>
 #include <iostream>
+#include <unsupported/Eigen/CXX11/Tensor>
+#include "NTK/NumericalDerivative.h"
+#include "NTK/Observable.h"
+#include "NTK/utility.hpp"
 
 
 double P10(double x) { return (1. / 256) * (46189 * pow(x, 10) - 109395 * pow(x, 8) + 90090 * pow(x, 6) - 30030 * pow(x, 4) + 3465 * pow(x, 2) - 63); }
+
 int main(int argc, char *argv[])
 {
+  const char* const short_opts = "i";
+  const option long_opts[] =
+  {
+    {"initialisation", no_argument, nullptr, 'i'},
+  };
+
+  bool only_initialisation = false;
+
+  while (true)
+    {
+      const auto opt = getopt_long(argc, argv, short_opts, long_opts, nullptr);
+
+      if (opt == -1)
+        break;
+
+      switch (opt)
+        {
+          case 'i':
+            only_initialisation = true;
+            break;
+          case '?':
+          default:
+            std::cerr << "Usage of " << argv[0] << ": [-i|--initialisation] <replica index> <fit folder>" << std::endl;
+            exit(-1);
+        }
+    }
+
   if ((argc - optind) != 2)
     {
-      std::cerr << "Usage of " << argv[0] << ": <replica index> <fit folder>" << std::endl;
+      std::cerr << "Usage of " << argv[0] << ": [-i|--initialisation] <replica index> <fit folder>" << std::endl;
       exit(-1);
     }
 
@@ -71,77 +103,102 @@ int main(int argc, char *argv[])
     for (int ip = 0; ip < np; ip++)
         initPars[ip] = new double(pars[ip]);
 
-  // Allocate "Problem" instance
-  ceres::Problem problem;
-
   // Allocate a "Chi2CostFunction" instance to be fed to ceres for minimisation
   NTK::AnalyticCostFunction *analytic_chi2cf = new NTK::AnalyticCostFunction{nn, Data};
-  problem.AddResidualBlock(analytic_chi2cf, NULL, initPars);
 
   // Compute initial chi24
   std::cout << "Initial chi2 = " << analytic_chi2cf->Evaluate() << std::endl;
   std::cout << "\n";
 
+  //======================
+  // Observables
+  //======================
+  int batch_size = 4;
+  std::vector<NTK::data> data_batch = NTK::create_data_batch(batch_size, Data);
+  NTK::dNN dnn(nn, data_batch);
+  NTK::ddNN ddnn(nn, data_batch);
+  NTK::d3NN d3nn(nn, data_batch);
+  NTK::O2 o2(batch_size, NNarchitecture.back());
+  NTK::O3 o3(batch_size, NNarchitecture.back());
+  NTK::O4 o4(batch_size, NNarchitecture.back());
+  dnn.Evaluate();
+  ddnn.Evaluate();
+  d3nn.Evaluate();
+  o2.Evaluate(&dnn);
+  o3.Evaluate(&dnn, &ddnn);
+  o4.Evaluate(&dnn, &ddnn, &d3nn);
+  print_obs_to_yaml(FitFolder, 0, replica, &o2, &o3, &o4);
+  
+
+
   // Solve
-  ceres::Solver::Options options;
-  options.minimizer_type = ceres::LINE_SEARCH;
-  options.line_search_direction_type = ceres::STEEPEST_DESCENT;
-  options.line_search_type = ceres::ARMIJO;
-  options.max_num_iterations = InputCard["max_num_iterations"].as<int>();
-  options.minimizer_progress_to_stdout = true;
-  options.function_tolerance  = 1e-7;
-  options.gradient_tolerance  = 1e-7;
-  options.parameter_tolerance = 1e-7;
-  //options.num_threads = 4;
+  if (!only_initialisation){
+    // Allocate "Problem" instance
+    ceres::Problem problem;
+    problem.AddResidualBlock(analytic_chi2cf, NULL, initPars);
 
-  // Iteration callback
-  options.update_state_every_iteration = true;
-  NTK::IterationCallBack *callback = new NTK::IterationCallBack(false, FitFolder, replica, initPars, analytic_chi2cf);
-  options.callbacks.push_back(callback);
+    ceres::Solver::Options options;
+    options.minimizer_type = ceres::LINE_SEARCH;
+    options.line_search_direction_type = ceres::STEEPEST_DESCENT;
+    options.line_search_type = ceres::ARMIJO;
+    options.max_num_iterations = InputCard["max_num_iterations"].as<int>();
+    options.minimizer_progress_to_stdout = true;
+    options.function_tolerance  = 1e-7;
+    options.gradient_tolerance  = 1e-7;
+    options.parameter_tolerance = 1e-7;
+    //options.num_threads = 4;
 
-  ceres::Solver::Summary summary;
+    // Iteration callback
+    options.update_state_every_iteration = true;
+    NTK::IterationCallBack *callback = new NTK::IterationCallBack(false, FitFolder, replica, initPars, analytic_chi2cf);
+    options.callbacks.push_back(callback);
 
-  Solve(options, &problem, &summary);
+    ceres::Solver::Summary summary;
 
-  std::cout << summary.FullReport() << "\n";
+    Solve(options, &problem, &summary);
 
-  // Compute final chi2
-  std::vector<double> final_pars;
-  for (int i = 0; i < np; i++)
-    final_pars.push_back(initPars[i][0]);
-  nn->SetParameters(final_pars);
-  std::cout << "Final chi2 = " << analytic_chi2cf->Evaluate() << std::endl;
-  std::cout << "\n";
+    std::cout << summary.FullReport() << "\n";
 
-  YAML::Emitter emitter;
-    emitter << YAML::BeginMap;
-    //__________________________________
-    emitter << YAML::Key << "Dependent variables";
-    emitter << YAML::Value << YAML::BeginSeq;
-    for (auto &d : Data)
-    {
-        emitter << YAML::BeginMap;
-        emitter << YAML::Key << "Value" << YAML::Value << nn->Evaluate(std::get<0>(d));
-        emitter << YAML::EndMap;
-    }
-    emitter << YAML::EndSeq;
-    emitter << YAML::Newline << YAML::Newline;
-    emitter << YAML::Key << "Independent variables";
-    emitter << YAML::Value << YAML::BeginSeq;
-    for (auto &d : Data)
-    {
-        emitter << YAML::BeginMap;
-        emitter << YAML::Key << "Value" << YAML::Value << std::get<0>(d);
-        emitter << YAML::EndMap;
-    }
-    //__________________________________
-    emitter << YAML::EndMap;
+    // Compute final chi2
+    std::vector<double> final_pars;
+    for (int i = 0; i < np; i++)
+      final_pars.push_back(initPars[i][0]);
+    nn->SetParameters(final_pars);
+    std::cout << "Final chi2 = " << analytic_chi2cf->Evaluate() << std::endl;
+    std::cout << "\n";
 
-    std::ofstream fout;
-    fout = std::ofstream(FitFolder + "/output/Output_" + std::to_string(replica) + ".yaml", std::ios::out | std::ios::app);
-    fout << emitter.c_str();
-    fout.close();
+    YAML::Emitter emitter;
+      emitter << YAML::BeginMap;
+      //__________________________________
+      emitter << YAML::Key << "Dependent variables";
+      emitter << YAML::Value << YAML::BeginSeq;
+      for (auto &d : Data)
+      {
+          emitter << YAML::BeginMap;
+          emitter << YAML::Key << "Value" << YAML::Value << nn->Evaluate(std::get<0>(d));
+          emitter << YAML::EndMap;
+      }
+      emitter << YAML::EndSeq;
+      emitter << YAML::Newline << YAML::Newline;
+      emitter << YAML::Key << "Independent variables";
+      emitter << YAML::Value << YAML::BeginSeq;
+      for (auto &d : Data)
+      {
+          emitter << YAML::BeginMap;
+          emitter << YAML::Key << "Value" << YAML::Value << std::get<0>(d);
+          emitter << YAML::EndMap;
+      }
+      //__________________________________
+      emitter << YAML::EndMap;
+
+      std::ofstream fout;
+      fout = std::ofstream(FitFolder + "/output/Output_" + std::to_string(replica) + ".yaml", std::ios::out | std::ios::app);
+      fout << emitter.c_str();
+      fout.close();
+      delete callback;
+  }
 
   delete nn;
+  delete analytic_chi2cf;
   return 0;
 }

@@ -1,9 +1,13 @@
 #include "NTK/AnalyticCostFunction.h"
 #include "NTK/IterationCallBack.h"
+#include "NTK/NumericalDerivative.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <yaml-cpp/yaml.h>
+
+// Eigen tensors
+#include <unsupported/Eigen/CXX11/Tensor>
 
 namespace NTK
 {
@@ -72,22 +76,76 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
     _chi2t->SetParameters(vpar);
     const double chi2t_tot = _chi2t->Evaluate();
 
+    //________________________________________________________________________________
+    // |====================================|
+    // |             Obserables             |
+    // |====================================|
+    // Dependencies for independet environment
+    // nnad::FeedForwardNN<double> *NN
+    // Nout
     nnad::FeedForwardNN<double> *NN = _chi2t->GetNN();
+    int Nout = NN->GetArchitecture().back();
+    std::vector<double> parameters = NN->GetParameters();
 
     // Store value as row major order
+    // TO-DO
+    // I would rather prefer to read the step size from the config
+    // parser, or conceive something more general and not hard-coded.
+    // Also the calculation of `StepSize` is not free from errors and
+    // undesired outcomes.
     int ndata = _chi2t->GetData().size();
     int Size = 4;
     int StepSize = int(ndata / 4);
-    nnad::Matrix NTK {Size, Size, std::vector<double> (Size * Size, 0.)};
+    const double eps = 1.e-5;
+
+    Eigen::Tensor<double, 3> d_NN (Size, Nout, Np);
+    Eigen::Tensor<double, 4> dd_NN (Size, Nout, Np, Np);
+    d_NN.setZero();
+    dd_NN.setZero();
+
     for (int a = 0; a < Size; a++){
-      for (int b = 0; b < Size; b++){
-          std::vector<double> input_a = std::get<0>(_chi2t->GetData()[(a) * StepSize]);
-          std::vector<double> input_b = std::get<0>(_chi2t->GetData()[(b) * StepSize]);
-          NTK.SetElement(a,b, NN->NTK(input_a, input_b).GetElement(0,0));
-      }
+      std::vector<double> input_a = std::get<0>(_chi2t->GetData()[(a) * StepSize]);
+
+      // -------------------------- First derivative -------------------------
+      // .data() is needed because returns a direct pointer to the memory array used internally by the vector
+      std::vector<double> DD = NN->Derive(input_a);
+      Eigen::TensorMap< Eigen::Tensor<double, 2, Eigen::ColMajor> > temp (DD.data(), Nout, Np + 1); // Col-Major
+
+      // Get rid of the first column (the outputs) and stores only first derivatives
+      Eigen::array<Eigen::Index, 2> offsets = {0, 1};
+      Eigen::array<Eigen::Index, 2> extents = {Nout, Np};
+      d_NN.chip(a,0) = temp.slice(offsets, extents);
+
+
+      // -------------------------- Second derivative -------------------------
+      std::vector<double> results_vec = NTK::helper::HelperSecondFiniteDer(NN, input_a, eps); // Compute second derivatives
+
+      // Store into ColMajor tensor
+      // The order of the dimensions has been tested in "SecondDerivative", and worked out by hand.
+      Eigen::TensorMap< Eigen::Tensor<double, 3, Eigen::ColMajor> > ddNN (results_vec.data(), Nout, Np + 1, Np);
+
+      // Swap to ColMajor for compatibility and reshape
+      Eigen::array<int, 3> new_shape{{0, 2, 1}};
+      Eigen::Tensor<double, 3> ddNN_reshape = ddNN.shuffle(new_shape);
+
+      // Get rid of the first column (the firs derivatives) and stores only second derivatives
+      Eigen::array<Eigen::Index, 3> offsets_3 = {0, 0, 1};
+      Eigen::array<Eigen::Index, 3> extents_3 = {Nout, Np, Np};
+      dd_NN.chip(a,0) = ddNN_reshape.slice(offsets_3, extents_3);
     }
 
-    //NTK.Display();
+    // Contract first derivatives to get the NTK
+    Eigen::array<Eigen::IndexPair<int>, 1> double_contraction = { Eigen::IndexPair<int>(2,2) };
+    Eigen::Tensor<double, 4> NTK_Eigen = d_NN.contract(d_NN, double_contraction);
+    std::vector<double> NTK_Eigen_vec ( NTK_Eigen.data(),  NTK_Eigen.data() + NTK_Eigen.size() );
+
+    // Contract first and second derivatives
+    Eigen::array<Eigen::IndexPair<int>, 0> tensor_product = {  };
+    Eigen::array<Eigen::IndexPair<int>, 2> first_contraction = { Eigen::IndexPair<int>(2,2), Eigen::IndexPair<int>(3,5) };
+    Eigen::Tensor<double, 6> d_mu_d_nu_f_ia = d_NN.contract(d_NN, tensor_product);
+    Eigen::Tensor<double, 6> O3 = dd_NN.contract(d_mu_d_nu_f_ia, first_contraction);
+    std::vector<double> O3_vec ( O3.data(),  O3.data() + O3.size() );
+    //_____________________________________________
 
     // Output parameters into yaml file
     YAML::Emitter emitter;
@@ -100,7 +158,8 @@ IterationCallBack::IterationCallBack(bool VALIDATION,
     if (_VALIDATION)
       emitter << YAML::Key << "validation chi2" << YAML::Value << chi2v;
     //emitter << YAML::Key << "parameters" << YAML::Value << YAML::Flow << vpar;
-    emitter << YAML::Key << "NTK" << YAML::Value << YAML::Flow << NTK.GetVector();
+    emitter << YAML::Key << "NTK_eigen" << YAML::Value << YAML::Flow << NTK_Eigen_vec;
+    emitter << YAML::Key << "O_3" << YAML::Value << YAML::Flow << O3_vec;
     emitter << YAML::EndMap;
     emitter << YAML::EndSeq;
     emitter << YAML::Newline;

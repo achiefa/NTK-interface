@@ -1,7 +1,13 @@
 #!/bin/bash
 
+PATH_TO_FIT_FOLDER=$2
+PATH_TO_SCRIPT="/Users/s2569857/Codes/NTK-interface/build/run"
+PATH_TO_FIT_FOLDER=$2
+OUT_PATH="${2}/out"
+TRAIN="${PATH_TO_SCRIPT}/train"
+
 # This is the concurrency limit
-MAX_POOL_SIZE=8
+MAX_POOL_SIZE=10
 
 # Jobs will be loaded from this file
 JOB_LIST=job-list.txt
@@ -22,7 +28,7 @@ _log() {
 process_job() {
   # customize your job function as required
   # in our example, we just "ping" each hostname read from the file
-  nohup ./train $1 ../../runcards/InputCard.yaml test ./test/InputCard/Data.yaml > "out/output_"${1%".txt"} &
+  nohup ${TRAIN} -i $1 $2 > "${OUT_PATH}/output_"${1%".txt"} &
 }
 
 
@@ -32,7 +38,7 @@ process_job() {
 # Starting the timer
 T1=$(date +%s)
 
-mkdir -p out
+mkdir -p ${OUT_PATH}
 # Reading the $JOB_LIST file, line by line
 for ((i = 1; i <= $1; i++))
 do
@@ -52,7 +58,7 @@ do
   # This is a custom function to process each job read from the file
   # It calls the custom function with each line read by the $JOB_LIST and send it to background for processing
   _log "Starting job $line"  
-  process_job $i
+  process_job $i $2
   
   # When a new job is created, the program updates the $CURRENT_POOL_SIZE variable before next iteration
   CURRENT_POOL_SIZE=$(jobs | wc -l)
