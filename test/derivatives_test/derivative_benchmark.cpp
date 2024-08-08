@@ -90,7 +90,7 @@ void third_derivative_bench(benchmark::State &s) {
       end_row = start_row + n_rows;
       threads.emplace_back(
         [&] { 
-          LoopSecondDerivative(NNAD_wrapper, nn->GetParameters(), eps, data_batch[3], np, start_row, end_row);
+          BlockSecondDerivative(NNAD_wrapper, nn->GetParameters(), eps, data_batch[3], np, start_row, end_row);
         });
     }
 
