@@ -1,4 +1,4 @@
-#include "NTK/Observable.h"
+#include "NTK/Observable_impl.h"
 #include "NTK/NumericalDerivative.h"
 
 namespace NTK{
