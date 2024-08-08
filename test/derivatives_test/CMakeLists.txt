@@ -1,0 +1,3 @@
+add_executable(unit_derivative_test derivative_test.cpp)
+target_link_libraries(unit_derivative_test PRIVATE NTK Catch2::Catch2WithMain)
+catch_discover_tests(unit_derivative_test)

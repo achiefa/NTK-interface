@@ -22,7 +22,7 @@ main() {
     local i
 
     for (( i = 1; i <= $1; i++ )); do
-        args+=(- "Replica ${i}" ${TRAIN} $i $2)
+        args+=(- "Replica ${i}" ${TRAIN} -i $i $2)
     done
 
     concurrent "${args[@]}"
